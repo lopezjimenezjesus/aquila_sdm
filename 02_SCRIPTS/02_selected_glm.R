@@ -178,72 +178,6 @@ ggsave(filename = '04_RESULTS/02_figures/intermediate_models_fav.png',
 
 
 
-##################################################
-## Section: Model scaled
-##################################################
-
-## FDR - Correlation
-##################################################
-
-xy.scaled <- scale(xy)
-xy.scaled <- as.data.frame(xy.scaled)
-xy.scaled.fdr <- FDR(data = xy.scaled,  length(xy), var.cols = 1:(length(xy)-1))
-
-paste(rownames(xy.scaled.fdr$select), collapse = " + ")
-
-xy.scaled$AQUADA <- xy$AQUADA
-
-## Fit
-##################################################
-
-null.model.scaled <- glm(AQUADA ~ 1, data=xy.scaled, family = binomial)
-
-model.glm.scaled <- step(null.model.scaled, direction='forward',
-                  keep =  function(model, aic) list(model = model, aic = aic),
-                  scope = (~QUESUR + Ciervo + TABSMAX1 + RAINDAY1 + QUEILE + 
-                             P_DIAS + EUCSPP + Deh + PSpr + Cul_len + Ptot + 
-                             P_prim + Cul_het + LongCarrD + DenCap18 + Psum + 
-                             Pwin + Jabali + Reg + Pene + Sup_arti + Pvar + 
-                             Conejo + Pjul + LongElectD))
-
-summary(model.glm.scaled)
-
-
-# what if using non scaled predictors but with variables selected from scaled predictors
-
-model.glm_foo <- step(null.model, direction='forward',
-                  keep =  function(model, aic) list(model = model, aic = aic),
-                  scope = (~QUESUR + Ciervo + TABSMAX1 + RAINDAY1 + QUEILE + 
-                             P_DIAS + EUCSPP + Deh + PSpr + Cul_len + Ptot + 
-                             P_prim + Cul_het + LongCarrD + DenCap18 + Psum + 
-                             Pwin + Jabali + Reg + Pene + Sup_arti + Pvar + 
-                             Conejo + Pjul + LongElectD))
-
-summary(model.glm_foo)
-
-model.glm.scaled <- model.glm_foo
-
-## Eval
-##################################################
-
-## Metrics
-##################################################
-
-## 1) whole model
-
-
-# model.glm.scaled
-
-var_groups <- data.frame(vars = c("Cul_len", "PSpr", "TABSMAX1", "QUESUR", "RAINDAY1", 
-                                  "Ciervo", "Pene", "DenCap18", "Reg", "Conejo", "LongElectD", 
-                                  "P_DIAS", "Cul_het", "Jabali", "Pwin"), 
-                         groups = c("Antropico", "Abioticos","Abioticos", "Biotico", "Abioticos", 
-                                    "Biotico", "Abioticos", "Antropico", "Abioticos",  "Biotico", "Antropico", 
-                                    "Abioticos", "Abioticos", "Biotico", "Abioticos"))
-var_groups
-
-varPart(model = model.glm.scaled, groups = var_groups)
-varPart(model = model.glm.scaled, groups = var_groups, pred.type = "P", colr = TRUE)
 
 
 ## 2) model trimmed
@@ -298,34 +232,4 @@ confusionMatrix(obs = xy.scaled$AQUADA, pred =  Fav(model.glm.scaled)
 
 threshMeasures(model = model.glm.scaled, ylim = c(0, 1), thresh = "preval")
 
-##################################################
-## Section: Favourability
-##################################################
-
-## Favourability main model
-##################################################
-
-fav <- Fav(model.glm.scaled)
-
-aq <- data.frame(CUADRICULA=x$CUADRICULA, xy$AQUADA, f=fav)
-
-aq.sf <- inner_join(utm10, aq, by="CUADRICULA")
-
-aq.sf$category <- cut(aq.sf$f, breaks=c(-Inf, 0.2, 0.8, Inf), labels=c("low","middle","high"))
-
-ggplot(data=aq.sf) +
-  geom_sf(aes(fill=category)) +
-  scale_fill_manual(values = c("low" = "red", "middle" = "yellow", "high" = "green")) +
-  geom_sf(data=st_centroid(aq.sf) %>% dplyr::filter(xy.AQUADA==1))
-
-
-## Favourability intermediate models
-##################################################
-
-
-## 
-
-fav_list <- fav_step_models(model.glm.scaled)
-
-fav_plots <- plot_fav_step_models(fav_list)
 
