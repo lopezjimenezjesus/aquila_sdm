@@ -18,6 +18,8 @@ library(tidyverse)
 library(corrplot)
 library(blorr)
 library(gridExtra)
+library(broom)
+library(flextable)
 
 here::i_am('Aquila_adalberti_SDM.Rproj')
 
@@ -51,9 +53,11 @@ xy <- xy %>% dplyr::select(-c("CUADRICULA", "Ori_W", "Ori_S",
 paste(names(xy)[1:dim(xy)[2]], collapse = " + ")
 
 
-
 ## Functions
 ##################################################
+
+
+
 
 fav_step_models <- function(model) {
   # Save intermediate models in a list
@@ -138,6 +142,7 @@ model.glm <- step(null.model, direction='forward',
                              RAINMAX7 + TABSMIN1 + Tsum))
 
 
+saveRDS(model.glm, file="04_RESULTS/01_models/glm_model.rds")
 
 ## Favourability
 ##################################################
@@ -161,8 +166,12 @@ plot_fav <- function(sf_dataframe, include_presence_points=TRUE) {
 } 
 
 
-p <- plot_fav(aq.sf, TRUE)
+p <- plot_fav(aq.sf, FALSE)
 p
+
+ggsave(filename = '04_RESULTS/02_figures/fav_historical_model.png', 
+       plot = p, dpi = "retina")
+
 
 ## Plot intermediate models 
 ##################################################
@@ -178,58 +187,119 @@ ggsave(filename = '04_RESULTS/02_figures/intermediate_models_fav.png',
 
 
 
+## Trimmed model
+##################################################
+
+model.glm.trimmed <- modelTrim(model.glm)
+
+saveRDS(model.glm.trimmed, file="04_RESULTS/01_models/glm_model_trimmed.rds")
 
 
-## 2) model trimmed
+## Variance partition
+##################################################
 
-model.glm.scaled.trimmed <- modelTrim(model.glm.scaled)
-
+dput(colnames(model.glm.trimmed$data))
 
 
 var_groups <- data.frame(vars =c("PSpr", "TABSMAX1", "QUESUR", "RAINDAY1", "Ciervo", 
-                                 "Pene", "DenCap18", "Conejo", "LongElectD"),
-                         groups = c("Abióticos", "Abióticos","Biótico", "Abióticos", "Biótico", 
-                                    "Abióticos", "Antrópico", "Biótico", "Antrópico"))
+                                 "Paut", "DenCap18", "Reg", "Conejo", "Pene", "Pvar", "LongElectD"),
+                         groups = c("Factores ambientales Abióticos", "Factores ambientales Abióticos",
+                                    "Factores ambientales Bióticos",   "Factores ambientales Abióticos", 
+                                    "Factores ambientales Bióticos",  "Factores ambientales Abióticos", 
+                                    "Factores ambientales Antrópicos", "Factores ambientales Abióticos",
+                                    "Factores ambientales Bióticos",  "Factores ambientales Abióticos", 
+                                    "Factores ambientales Abióticos", "Factores ambientales Antrópicos"))
 
+png(filename="04_RESULTS/02_figures/variance_plot.png", width = 800, height = 800)
+varPart(model = model.glm.trimmed, groups = var_groups,plot.unexpl=FALSE, cex.names	=1)
+dev.off()
 
-varPart(model = model.glm.scaled.trimmed, groups = var_groups)
-varPart(model = model.glm.scaled.trimmed, groups = var_groups, pred.type = "P", colr = TRUE)
-
+png(filename="04_RESULTS/02_figures/variance_plot_color.png", width = 800, height = 800)
+varPart(model = model.glm.trimmed, groups = var_groups, pred.type = "P", colr = TRUE,plot.unexpl=FALSE, cex.names	=1)
+dev.off()
 
 
 ##################################################
-## Section: Coeficients, metrics, etc
+## Section: Coefficients, metrics, etc
+##################################################  
+
+
+## Coefficients
 ##################################################
 
-library(broom)
+tidy_coef <- broom::tidy(model.glm.trimmed)
 
-tidy(model.glm.scaled) # coefficients
-glance(model.glm.scaled) #  summary statistics
-head(augment(model.glm.scaled)) #  fitted values and residuals
+odd.ratio <- exp(coef(model.glm.trimmed))
 
-exp(coef(model.glm.scaled))
 
-blr_test_hosmer_lemeshow(model.glm.scaled) 
+foo <- cbind(tidy_coef, odd.ratio)
 
-summary(model.glm.scaled, statistic = "Wald")
+
+library(kableExtra)
+tidy_coef.kable <-  knitr::kable(tidy_coef, "html") %>%
+  kable_styling("striped") %>% 
+  row_spec(0, background = "#F7CAAC") %>%
+  row_spec(seq(1,dim(tidy_coef)[1],2), background = "#FBE4D5")
+
+tidy_coef.flex <- flextable(tidy_coef)
+
+saveRDS(tidy_coef.flex, file = "01_DATA/OUTPUT/foo_flex.rds")
+
+saveRDS(tidy_coef.kable, file = "01_DATA/OUTPUT/foo_kable.rds")
+
+save_kable(tidy_coef.kable, file = "01_DATA/OUTPUT/foo_kable.png")
+
+coeficients_df <- tidy(model.glm.trimmed) # coefficients
+
+
+glance(model.glm.trimmed) #  summary statistics
+
+head(augment(model.glm)) #  fitted values and residuals
+
+## de Hosmer y Lemeshow 
+##################################################
+
+
+blr <- blr_test_hosmer_lemeshow(model.glm.trimmed)
+blr
+
+## Wald 
+##################################################
+
+summary(model.glm.trimmed, statistic = "Wald")
+
+w <- waldtest(object = model.glm)
+drop1(model.glm, test = "LRT") 
+
 
 library(aod)
 
-foo <- aod::wald.test(Sigma = vcov(model.glm.scaled), b = coef(model.glm.scaled), Terms = 1)
+foo <- aod::wald.test(Sigma = vcov(model.glm.trimmed), b = coef(model.glm.trimmed), Terms = 1)
 
 foo$result$chi2
+
+
+## Confussion matrix and metrics
+##################################################
 
 library(mecofun)
 
 
-crosspred_glm <- mecofun::crossvalSDM(model.glm.scaled, traindat= xy.scaled,
-                                      colname_pred=colnames(xy.scaled)[1:(dim(xy.scaled)[2]-1)], colname_species = "AQUADA", kfold= 10)
+crosspred_glm <- mecofun::crossvalSDM(model.glm.trimmed, traindat= xy,
+                                      colname_pred=colnames(xy)[1:(dim(xy)[2]-1)], 
+                                      colname_species = "AQUADA", kfold= 10)
 
-mecofun::evalSDM(xy.scaled$AQUADA, crosspred_glm)
+mecofun::evalSDM(xy$AQUADA, crosspred_glm)
 
-confusionMatrix(obs = xy.scaled$AQUADA, pred =  Fav(model.glm.scaled)
-, thresh = 0.5)
+confusionMatrix(obs = xy$AQUADA, pred =  Fav(model.glm), thresh = 0.5)
 
-threshMeasures(model = model.glm.scaled, ylim = c(0, 1), thresh = "preval")
+tm <- threshMeasures(model = model.glm, ylim = c(0, 1), thresh = 0.5)
+tm <- threshMeasures(model = model.glm, ylim = c(0, 1), thresh = "preval")
 
+cm <- tm$ConfusionMatrix
 
+cm <- as.data.frame(cm)
+
+rownames(cm) <- c("Favorable", "Desfavorable")
+colnames(cm) <- c("Presencia", "Ausencia")
+cm

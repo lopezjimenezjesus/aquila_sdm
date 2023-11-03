@@ -4,6 +4,13 @@ format: docx
 editor: visual
 ---
 
+```{r}
+library(kableExtra)
+library(flextable)
+library(here)
+here::i_am("../../Aquila_adalberti_SDM.Rproj")
+```
+
 ## Selección de habitat
 
 ## Introducción
@@ -40,4 +47,43 @@ Gráfico Varianza compartida
 
 ### Metodología
 
-Para determinar el efecto del cambio climático sobre el águila perdicera en Extremadura, se ha utilizado la metodología propuesta por Real et al. (2010) para el cálculo de la favorabilidad climática por unidades espaciales. Para ello, se ha cuantificado la variación entre un escenario presente ---creado mediante la utilización de datos históricos de una serie climática de los últimos años---, y un conjunto de escenarios proyectados a futuro ---establecidos por distintos escenarios temporales, de circulación atmosférica o de emisiones--- (Figura 53).
+Para determinar el efecto del cambio climático sobre el águila perdicera en Extremadura, se ha utilizado la metodología propuesta por Real et al. (2010) para el cálculo de la favorabilidad climática por unidades espaciales. Para ello, se ha cuantificado la variación entre un escenario presente ---creado mediante la utilización de datos históricos de una serie climática de los últimos años---, y un conjunto de escenarios proyectados a futuro ---establecidos por distintos escenarios temporales, de circulación atmosférica o de emisiones.
+
+
+```{r}
+tidy_coef.kable <- readRDS(file = here("../../01_DATA/OUTPUT/foo_kable.rds"))
+tidy_coef.kable
+```
+
+Se han calculado, tanto para las variables abióticas como para las climáticas históricas y futuras, los datos medios por cuadrículas UTM de 10 km de lado mediante las herramientas de estadística zonal del software ArcGIS 10.1. Para recoger toda la variabilidad atmosférica, cada uno de los escenarios temporales y de emisiones (SSP) pertenecientes a los respectivos GCM, se han agrupado en un solo valor, obteniéndose a través del cálculo de la media aritmética y mediante la utilización del mismo software, un total de 16 escenarios de cambio climático que recogen las distintas fechas y trayectorias futuras posibles.
+
+Los cálculos y tratamientos estadísticos para el cálculo de la favorabilidad se han realizado mediante el software SPSS versión 27 y hojas de cálculo Excel del paquete Microsoft Office 365.
+
+El cálculo de favorabilidad climática del águila perdicera se ha realizado mediante la utilización de las presencias/ausencias de la especie como variable dependiente, y los datos derivados de las variables abióticas y climáticas históricas, como variables independientes. Estos resultados se han proyectado para cada uno de los 16 escenarios de cambio climático definidos anteriormente, para conocer la variación de la favorabilidad climática de la especie. Para ello, inicialmente con los datos climáticos históricos se ha realizado un análisis para crear un subconjunto de variables predictivas significativas mediante un análisis de regresión logística binaria de la presencia/ausencia de la especie respecto a cada una de las 22 variables disponibles, obteniendo la significancia (α) individual de cada variable dentro del modelo (Muñoz y Real, 2006). Posteriormente, para evitar la multicolinealidad entre estas variables, se ha aplicado un coeficiente de correlación de Spearman entre ellas. Para cada pareja de variables con valor de correlación superior a 0,8, se ha seleccionado la variable con mayor nivel de significancia individual (α) (Chamorro *et al.*, 2020).
+
+Los valores de la probabilidad y favorabilidad de presencia de la especie en cada
+una de las cuadrículas se han obtenido siguiendo la misma metodología explicada
+en el apartado para el estudio del modelo de distribución (Ver metodología *1.2.4. Modelo de
+distribución espacial de la especie en Extremadura*).
+
+## Resultados
+
+En el estudio del águila perdicera y el cambio climático, el análisis de multicolinealidad ha descartado 14 de las 22 variables evaluadas, reduciéndose a cinco mediante la técnica FDR (Anexo I). Se ha configurado finalmente un modelo en tres pasos con dos variables explicativas resultantes, ambas estadísticamente significativas (Tabla 31). Las dos variables seleccionadas por el modelo (isotermalidad y la precipitación del mes más árido) han presentado signo negativo. Además, no se han encontrado en el modelo diferencias significativas (HyL \> 0,05) entre lo observado y lo esperado en la prueba de Hosmer y Lemeshow (HyL = 0,096).
+
+
+```{r}
+
+tidy_coef.flex <- readRDS(file = here("../../01_DATA/OUTPUT/foo_flex.rds"))
+# seq(1,dim(tidy_coef)[1],2)
+
+tidy_coef.flex %>% 
+  bg(i=c(1,3,5),  bg = "#FBE4D5", part = "body")  %>%
+  width(., width = 1)
+
+
+```
+
+Se ha obtenido la favorabilidad de la especie para los datos climáticos históricos, mostrando los resultados de la misma en dos y tres clases por cuadrículas UTM 10km de lado (Figura 55). Para la primera clasificación se han obtenido 230 (45 %) cuadrículas UTM con una favorabilidad mayor de 0,5 (Figura 55.A); mientras que para la segunda clasificación, se han establecido 13 cuadrículas (3 %) de favorabilidad alta (> 0,8), 86 (17 %) de favorabilidad baja (< 0,2) y 417 cuadrículas (81 %) de favorabilidad intermedia (0,2-0,8) (Figura 55.B).
+
+
+
