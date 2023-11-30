@@ -1,0 +1,396 @@
+---
+title: "Modelos de favorabilidad - Aquila_dalberti"
+author: "Jesús Jiménez López"
+format:
+  docx:
+    reference-doc: custom-reference-doc.docx
+editor: visual
+lang: es
+execute:
+  echo: false
+  warning: false
+---
+
+```{r }
+library(kableExtra)
+library(tidyverse)
+library(flextable)
+library(here)
+library(stringr)
+library(fuzzySim)
+
+here::i_am("Aquila_adalberti_SDM.Rproj")
+
+source("02_SCRIPTS/functions.R")
+
+
+##################################################
+## Section: configure
+##################################################
+
+library(yaml)
+
+config = yaml.load_file(input = "config.yml")
+paths <- create_folder(folder_name = config$configuration$folder_name) # create folder for saving output
+
+
+##################################################
+## Section: model
+##################################################
+
+
+if(config$configuration$model_trimmed) {
+  
+  model.glm <- readRDS(file.path('04_RESULTS/01_models/',
+                                 config$configuration$folder_name, 'glm_model.rds'))
+  r2 <- unlist(fav_step_models(model.glm)[[2]])
+    
+  step_first_value_above <- which(r2>=0.75)[1]
+  r2_first_value_above <- r2[which(r2>=0.75)][1]
+   
+  model_optimal <- model.glm[["keep"]][["model", step_first_value_above]]
+  
+  model_optimal_c <- coefficients(model_optimal)[-1]
+  
+  f <- Fav(model.glm)
+  f_o <- Fav(model_optimal)
+
+  model.glm <- readRDS(file.path('04_RESULTS/01_models/',
+                                         config$configuration$folder_name, 'glm_model_trimmed.rds'))
+} else {
+  model.glm <- readRDS(file.path('04_RESULTS/01_models/',
+                                 config$configuration$folder_name, 'glm_model.rds'))
+  r2 <- unlist(fav_step_models(model.glm)[[2]])
+    
+  step_first_value_above <- which(r2>=0.75)[1]
+  r2_first_value_above <- r2[which(r2>=0.75)][1]
+   
+  model_optimal <- model.glm[["keep"]][["model", step_first_value_above]]
+  
+  model_optimal_c <- coefficients(model_optimal)[-1]
+
+  f <- Fav(model.glm)
+  f_o <- Fav(model_optimal)
+  
+}
+
+
+model.metrics <- readRDS(file.path('04_RESULTS/01_models/', 
+                                   config$configuration$folder_name, 'model_metrics.rds'))
+
+# tabla variables
+
+tabla_variables <- read.csv(file = "01_DATA/OUTPUT/metadata_predictors.csv")
+
+
+# tabla coeficientes
+
+tabla_coef_present <-readRDS(file.path( paths$model_path, 'tabla_coef.rds'))
+
+# tabla_coef_present <- readRDS(file = "04_RESULTS/01_models/tabla_coef.rds")
+
+tabla_coef_future <-readRDS(file.path( paths$model_path, 'tabla_coef_future.rds'))
+
+# tabla_coef_future <- readRDS(file = "04_RESULTS/01_models/tabla_coef_future.rds")
+
+max_wald_5 <- tabla_coef_present %>% arrange(desc(Wald)) %>% head(5) %>% dplyr::select("variables", "Wald") 
+#tabla_coef_present$variables[which.max(tabla_coef_present$Wald)]
+
+
+# R2 
+
+n <- 1:(length(model.glm[["keep"]]) /2)
+
+# r2 <- sapply(n, function(i) {with(summary(model.glm[["keep"]][["model", i]]), 1 - deviance/null.deviance)})
+
+
+# if(any(r2>=0.4)) {
+#   step_first_value_above <- which(r2>0.4)[1]
+#   r2_first_value_above <- r2[which(r2>0.4)][1]
+# 
+# } else if (any(r2<=0.4 & r2>=0.3)) {
+#   step_first_value_above <- which(r2>0.3)[1]
+#   r2_first_value_above <- r2[which(r2>0.3)][1]
+# } else {
+#     step_first_value_above <- which(r2>0.2)[1]
+#     r2_first_value_above <- r2[which(r2>0.1)][1]
+# }
+
+
+
+
+```
+
+```{r}
+
+# matriz confusión
+
+
+c_m <- readRDS(file =file.path( paths$model_path, 'confusion_matrix.rds'))
+
+tabla_coef_future <- readRDS(file=file.path( paths$model_path, 'tabla_coef_future.rds'))
+
+
+
+c <- coefficients(model.glm)[-1] # remove intercept
+
+lcoef <- length(c)
+# lcoef.trimmed <- length(coefficients(model.glm.trimmed))-1
+n_negative_coef <- sum(c < 0)
+n_positive_coef <- sum(c > 0)
+p_positive_coef <- lcoef - n_negative_coef
+
+```
+
+```{r}
+
+# f <- Fav(model.glm)
+between2 <- function(number,bounds) { number >= min(bounds) & number < max(bounds)} 
+
+fav_alta <- sum(f >= 0.8)
+fav_media <- sum(between2(f, c(0.2,0.8)))
+fav_baja <-  sum(f < 0.2)
+
+total_fav <- fav_alta + fav_media + fav_baja
+
+```
+
+```{r}
+
+# matrix
+
+cm_bind <-  cbind("Nº CUTM10" = rownames(c_m), c_m)
+
+favorable_ausencia <-  (c_m$Presencia[2] / sum(c_m$Presencia)) * 100
+
+cm_bind_per <- apply(as.matrix((c_m)), 2, function(x) { (x/ sum(x))*100})
+
+cm_bind_per_2 <- apply(as.matrix((c_m)), 1, function(x) { (x/ sum(x))*100})
+
+```
+
+# Aguila Imperial (Aquila adalberti)
+
+## Selección de habitat a nivel de paisaje
+
+### Introducción
+
+La selección del hábitat es un proceso que suele producirse de forma jerárquica, donde las características a mayor escala se seleccionan antes que las de menor (Johnson, 1980; Jones y Robertson, 2001). Se ha sugerido que estos procesos afectan a la selección de los lugares de nidificación (Orians y Wittenberger, 1991; Martínez *et al.*, 2003), ya que para que las características a menor escala sean las adecuadas, deben estar englobadas en el paisaje adecuado. El estudio de la distribución de las especies en relación con las características del paisaje puede ser de gran ayuda para construir modelos con los que mejorar estimas demográficas a gran escala, o para desarrollar una estratificación en muestreos para la investigación y seguimiento (Cowardin *et al.*, 1995; Johnson *et al.*, 2009).
+
+### Metodología Y resultados
+
+Para determinar la favorabilidad del Águila imperial en la Comunidad Autónoma de Extremadura, se procedió en primer lugar a identificar aquellas variables predictoras más significativas para el conjunto de presencias y ausencias de la especie en Extremadura. Para ello se utilizó la Tasa de descubrimiento falso (FDR) que permite excluir aquellas variables con menor peso en el modelo. Posteriormente se ajustó un modelo linear generalizado por pasos hacia adelante con las variables previamente seleccionadas. Como resultado el modelo incluyó un total de `r lcoef` variables (@tbl-coeficientes). En `r n_positive_coef` variables la relación ha sido positiva, y en `r n_negative_coef`de ellas negativa. Las variables con mayor peso en el modelo (Test de Wald) han sido `r max_wald_5[1,1]`, seguida de `r max_wald_5[2,1]`, `r max_wald_5[3,1]`, `r max_wald_5[4,1]` y `r max_wald_5[5,1]`.
+
+```{r}
+#| label: tbl-coeficientes
+#| tbl-cap: "Variables seleccionadas en el modelo. β: coeficientes del parámetro de /la ecuación, E.T.: error típico, Wald: importancia en el modelo, Sig.: /significación estadística, Exp(B): estimación de los Odd Ratio"
+#| tbl-cap-location: bottom
+
+flextable(tabla_coef_present) %>%
+bold(part = "header") %>% 
+colformat_double(
+  digits = 3, na_str = "N/A"
+  )  %>%
+  bg(bg = "#F7CAAC", part = "header") %>%
+  bg(i=seq(1,dim(tabla_coef_present)[1],2),  part = "body", bg =  "#FBE4D5") %>%
+   flextable::width(width=1) %>% border_outer()
+
+```
+
+Los valores de bondad de ajuste del modelo han indicado un buen ajuste de la capacidad de discriminación de los resultados, con un área bajo la curva superior al `r paste(round(model.metrics$AUC*100), "%")` (AUC = `r round(model.metrics$AUC,3)`), no encontrando diferencias significativas (HyL \> 0,05) entre lo observado y lo esperado en la prueba de Hosmer y Lemeshow (@tbl-metricas). La UPR ha establecido pocas zonas con presencia de la especie en cuadrículas con valores de favorabilidad bajos. Por el contrario, los valores de OPR han demostrado la existencia de una supuesta área potencial para la especie en Extremadura, con zonas abundantes con una favorabilidad elevada donde la especie se encuentra actualmente ausente (@tbl-metricas).
+
+```{r}
+#| label: tbl-metricas
+#| tbl-cap: "Estadísticas de bondad del modelo. AUC: Área bajo la curva, UPR: Tasa /de Subestima de la Predicción, OPR: Tasa de Sobreestima de la Predicción, HyL: /Hosmer y Lemeshow."
+#| tbl-cap-location: bottom
+
+# metricas modelo
+
+
+flextable(model.metrics) %>%
+bold(part = "header") %>% 
+colformat_double(
+  digits = 3, na_str = "N/A"
+  )  %>%
+  bg(bg = "#F7CAAC", part = "header") %>%
+  bg(i=seq(1,dim(model.metrics)[1],2),  part = "body", bg =  "#FFFFFF") %>%
+   flextable::width(width=1) %>% border_outer()
+```
+
+La matriz de confusión (@tbl-confusion), en la cual se ha establecido con anterioridad el valor de 0.5 para considerar favorable o desfavorable una cuadrícula; ha puesto de manifiesto que, del total de presencias de la especie, el `r round(cm_bind_per[2],3)` % se corresponden con zonas desfavorables, frente al `r round(cm_bind_per[1],3)` % que se encuentran en zonas favorables. De igual forma, esta matriz ha señalado que el `r round(sum(c_m[2,]) / 407, 3)` % de las cuadrículas del territorio de Extremadura son desfavorables para la especie, al no encontrarse presente la misma.
+
+```{r}
+#| label: tbl-confusion
+#| tbl-cap: "La matriz de confusión del número de cuadrículas con presencia/ausencia en zonas favorables (> 0,5) o desfavorables (< 0,5)."
+#| tbl-cap-location: bottom
+
+
+flextable(cm_bind) %>%
+bold(part = "header") %>% 
+colformat_double(
+  digits = 3, na_str = "N/A"
+  )  %>%
+  bg(bg = "#F7CAAC", part = "header") %>%
+  bg(i=seq(1,dim(model.metrics)[1],2),  part = "body", bg =  "#FBE4D5") %>%
+   flextable::width(width=1.1) %>% border_outer()
+
+```
+
+Los resultados han mostrado varios núcleos bien delimitados de alta favorabilidad, especialmente al norte de Badajoz, incluyendo la provincia de Alburquerque , la Sierra de San Pedro y zonas cercanas al embalse de Alcántara. En el cuadrante noroccidental destaca las sierras de Monfragüe y hacia el sur ciertos núcleos aislados cercanos al embalse de Cijara . También se obtienen zonas de alta favorabilidad en las estribaciones de Sierra Morena y en una franja que se extiende a lo largo de cota superior de la comarca de la Campiña, Tierra de Barros y Alange (@fig-fav). Considerando la favorabilidad clasificada en tres categorías (@fig-fav), se obtienen un total de `r fav_alta` cuadrículas con zonas de alta favorabilidad para la especie (\> 0,8), `r fav_media` cuadrículas de favorabilidad intermedia (0,2-0,8) y `r fav_baja` cuadrículas de baja favorabilidad (\< 0,2).
+
+![Resultados de favorabilidad para el águila imperial (A) 10 clases con pasos regulares de 0,1; (B) zonas desfavorables en color rojo (\< 0,2), zonas intermedias en color amarillo (0,2 -- 0,8) y zonas favorables en color verde (\> 0,8).](%60r%20file.path(paths$figure_path,%20%22fav_historical_model_c3_10.png%22)%60){#fig-fav}
+
+En el Paso `r step_first_value_above` de la regresión logística,el ajuste del modelo puede considerarse óptimo (R2 = `r round(r2_first_value_above,2)` ; @fig-fav_inter) de la favorabilidad total del modelo ha sido explicada por las `r length(model_optimal_c)` primeras variables que entran en el modelo (`r paste(names(model_optimal_c), collapse = ", ")`), todas ellas con valores positivos. En este paso, se han obtenido `r sum(Fav(model_optimal) > 0.8)` cuadrículas con favorabilidad alta (\> 0,8), que suponen el `r round((sum(Fav(model_optimal) > 0.8) / sum(Fav(model.glm) > 0.8))*100,3)` de las obtenidas en el total del modelo en el último paso; y `r sum(Fav(model_optimal) < 0.2)` cuadrículas con valores desfavorables (\< 0,2), que conforman el `r round(sum(Fav(model_optimal) < 0.2) / sum(Fav(model.glm) < 0.2),3)*100` % del total de las mismas en el último paso.
+
+![Resultados de las correlaciones de Pearson de la favorabilidad de cada paso de la regresión con el resultado final de favorabilidad del águila imperial.](%60r%20file.path(paths$figure_path,%20%22intermediate_models_fav.png%22)%60){#fig-fav_inter}
+
+```{r}
+predictors_table <- readr::read_csv(file = "01_DATA/OUTPUT/metadata_predictors.csv")
+
+mvf <- readRDS(file =file.path( paths$model_path, 'model_variables_factor.rds'))
+n_var <- length(names(coef(model.glm))[-1])
+#var_groups <- readRDS(file="04_RESULTS/01_models/model_variables_factor.rds")
+
+
+
+n_f <- mvf %>% group_by(factores) %>% count()
+
+```
+
+Del total de las variables seleccionadas por el modelo (`r n_var` variables), `r n_f$n[1]` han sido relacionadas con `r tolower(n_f$factores[1])`, `r n_f$n[2]` con `r tolower(n_f$factores[2])` y `r n_f$n[3]` con `r tolower(n_f$factores[3])` (@tbl-baan). En relación a la contribución a la variación total explicada por el modelo de cada uno de los factores que agrupan las variables seleccionadas, los factores abióticos tienen mayor influencia (), respecto a los factores abióticos y finalmente los factores antrópicos (%). En conjunto, las interacciones entre estos tres factores han tenido un efecto relativamente pequeño en el modelo (@fig-variance).
+
+```{r}
+#| label: tbl-baan
+#| tbl-cap: "Variables agrupadas por factores bióticos, abióticos y antrópicos"
+#| tbl-cap-location: bottom
+
+
+BAAn <- readRDS(file =file.path( paths$model_path, "BAAn.rds"))
+
+set_flextable_defaults(
+  border.color = "#F7CAAC",
+   font.family = "Calibri",
+  font.size = 11
+)
+
+colnames(BAAn) <- c("Factores ambientales Bióticos", "Factores ambientales Abióticos", "Factores Antrópicos")
+
+flextable(data= BAAn) %>%
+  bold(part = "header") %>% 
+   bg(bg = "#F7CAAC", part = "header") %>%   flextable::width(width=2) %>% border_outer()
+
+```
+
+![Partición de la varianza entre factores"](%60r%20file.path(paths$figure_path,%20%22variance_plot_color.png%22)%60){#fig-variance}
+
+## Selección del lugar de nidificación
+
+La selección del lugar de nidificación del águila imperial se ha determinado utilizando buffers de x m de radio alrededor de las localizaciones geográficas de las plataformas de cada una de las parejas. Dicha medida se basa en la utilización de cuadrículas 1 x 1 km UTM en estudios previos de selección del lugar de nidificación en rapaces (López-López *et al.*, 2006; López-López *et al.*, 2007c). El buffer de x m se ha aplicado a la ubicación de aquellas plataformas utilizadas (PS, PP) en el periodo 2017-2019 (Figura 34.A), que suman un total de 110 plataformas.
+
+Los estudios de selección de hábitat requieren la comparación de las áreas de presencia de la especie con una selección de áreas aleatorias (ausencias) repartidas por toda el área de estudio, en proporción 1:2 (Morán-López *et al.,* 2006). Para establecer las localizaciones de ausencia de la especie se han creado 166 puntos aleatorios y su respectiva área buffer de 500 m (Figura 34.B), separados una distancia mínima de 5.000 m entre ellos, evitando la localización de su centroide en los grandes embalses de Extremadura y no pudiendo ser sus áreas coincidentes con ningún área de nidificación existente (Figura 34.B).
+
+## Escenarios futuros y cambio climático
+
+POR TERMINAR
+
+### Introducción
+
+### Metodología
+
+Para determinar el efecto del cambio climático sobre el águila imperial en Extremadura, se ha utilizado la metodología propuesta por Real et al. (2010) para el cálculo de la favorabilidad climática por unidades espaciales. Para ello, se ha cuantificado la variación entre un escenario presente ---creado mediante la utilización de datos históricos de una serie climática de los últimos años---, y un conjunto de escenarios proyectados a futuro ---establecidos por distintos escenarios temporales, de circulación atmosférica o de emisiones.
+
+### Resultados
+
+```{r}
+
+BAAn <- readRDS(file =file.path( paths$model_path, "BAAn.rds"))
+
+model_to_explore <- read_rds(file = file.path( paths$model_path, "future_model_selected.rds"))
+
+n_coef <- length(coef(model_to_explore)[-1])
+```
+
+Para modelar la favorabilidad del Aguila imperial en Extremadura se realizó una preselección de las variables predictivas con mayor a partir del análisis de la correlación entre variables y la técnica FDR.
+
+Se ha configurado finalmente un modelo en x pasos con x variables explicativas estadísticamente significativas (Tabla 31). Las dos variables seleccionadas por el modelo (isotermalidad y la precipitación del mes más árido) han presentado signo negativo. Además, no se han encontrado en el modelo diferencias significativas (HyL \> 0,05) entre lo observado y lo esperado en la prueba de Hosmer y Lemeshow (HyL = 0,096).
+
+```{r}
+#| label: tbl-coef_future
+#| tbl-cap:  !expr "paste(\"Variables en el último paso de la regresión logística (Paso 3), ordenadas por su inclusión en el modelo. β: coeficientes del parámetro de la ecuación, E.T: error típico, Wald: importancia en el modelo, Sig.: significación estadística, Exp(B): estimación de los Odd Ratio.\")"
+#| tbl-cap-location: bottom
+#tidy_coef.kable <- readRDS(file = here("01_DATA/OUTPUT/foo_kable.rds"))
+
+flextable(tabla_coef_future) %>%
+bold(part = "header") %>% 
+colformat_double(
+  digits = 3, na_str = "N/A"
+  )  %>%
+  bg(bg = "#F7CAAC", part = "header") %>%
+  bg(i=seq(1,dim(tabla_coef_future)[1],2),  part = "body", bg =  "#FBE4D5") %>%
+   flextable::width(width=1) %>% border_outer()
+
+
+```
+
+Se han calculado, tanto para las variables abióticas como para las climáticas históricas y futuras, los datos medios por cuadrículas UTM de 10 km de lado mediante el software estadístico R. Para recoger toda la variabilidad atmosférica, cada uno de los escenarios temporales y de emisiones (SSP) pertenecientes a los respectivos GCM, se han agrupado en un solo valor, obteniéndose a través del cálculo de la media aritmética y mediante la utilización del mismo software, un total de 16 escenarios de cambio climático que recogen las distintas fechas y trayectorias futuras posibles.
+
+Los cálculos y tratamientos estadísticos para el cálculo de la favorabilidad se han realizado mediante la librería fuzzySim en R.
+
+![Partición de la varianza entre factores\"](%60r%20file.path(paths$figure_path,%20%22future_prediction_2.png%22)%60){fig-alt="Future prediction" fig-align="center"} {#fig-variance}
+
+El cálculo de favorabilidad climática del águila imperial se ha realizado mediante la utilización de las presencias/ausencias de la especie como variable dependiente, y los datos derivados de las variables climáticas históricas, como variables independientes. Estos resultados se han proyectado para cada uno de los 16 escenarios de cambio climático definidos anteriormente, para conocer la variación de la favorabilidad climática de la especie. Para ello, inicialmente con los datos climáticos históricos se ha realizado un análisis para crear un subconjunto de variables predictivas significativas mediante un análisis de regresión logística binaria de la presencia/ausencia de la especie respecto a cada una de las variables disponibles, obteniendo la significancia (α) individual de cada variable dentro del modelo (Muñoz y Real, 2006). Posteriormente, para evitar la multicolinealidad entre estas variables, se ha aplicado un coeficiente de correlación de Spearman entre ellas. Para cada pareja de variables con valor de correlación superior a 0,8, se ha seleccionado la variable con mayor nivel de significancia individual (α) (Chamorro *et al.*, 2020).
+
+Los valores de la probabilidad y favorabilidad de presencia de la especie en cada una de las cuadrículas se han obtenido siguiendo la misma metodología explicada en el apartado para el estudio del modelo de distribución (Ver metodología *1.2.4. Modelo de distribución espacial de la especie en Extremadura*).
+
+## Resultados
+
+En el estudio del águila imperial y el cambio climático, el análisis de multicolinealidad ha descartado x de las y variables evaluadas, reduciéndose a cinco mediante la técnica FDR (Anexo I). Se ha configurado finalmente un modelo en tres pasos con dos variables explicativas resultantes, ambas estadísticamente significativas (Tabla 31). Las dos variables seleccionadas por el modelo (isotermalidad y la precipitación del mes más árido) han presentado signo negativo. Además, no se han encontrado en el modelo diferencias significativas (HyL \> 0,05) entre lo observado y lo esperado en la prueba de Hosmer y Lemeshow (HyL = 0,096).
+
+```{r}
+
+#tidy_coef.flex <- readRDS(file = here("01_DATA/OUTPUT/foo_flex.rds"))
+# seq(1,dim(tidy_coef)[1],2)
+
+# tidy_coef.flex %>% 
+#   bg(i=c(1,3,5),  bg = "#FBE4D5", part = "body")  %>%
+#   width(., width = 1)
+
+
+```
+
+Se ha obtenido la favorabilidad de la especie para los datos climáticos históricos, mostrando los resultados de la misma en dos y tres clases por cuadrículas UTM 10km de lado (Figura 55). Para la primera clasificación se han obtenido 230 (45 %) cuadrículas UTM con una favorabilidad mayor de 0,5 (Figura 55.A); mientras que para la segunda clasificación, se han establecido 13 cuadrículas (3 %) de favorabilidad alta (\> 0,8), 86 (17 %) de favorabilidad baja (\< 0,2) y 417 cuadrículas (81 %) de favorabilidad intermedia (0,2-0,8) (Figura 55.B).
+
+# ANEXO 1. RELACIÓN DE VARIABLES UTILIZADAS EN LOS MODELOS DE DISTRIBUCIÓN DEL ÁGUILA IMPERIAL A DIFERENTES ESCALAS
+
+```{r}
+
+tabla_variables <- subset(tabla_variables, select=-predictors_names)
+colnames(tabla_variables) <- c("Tipología", "Nombre", "Descripción", "Paisaje", "Habitat", "NestSite", "Factores")
+
+flextable(tabla_variables) %>%
+bold(part = "header") %>% 
+colformat_double(
+  digits = 3, na_str = "N/A"
+  )  %>%
+  bg(bg = "#F7CAAC", part = "header") %>%
+    fontsize(size = 10,part = "header") %>%
+
+  fontsize(size = 8,part = "body") %>%
+  # bg(i=seq(1,dim(tabla_variables)[1],2),  part = "body", bg =  "#FBE4D5") %>%
+  bg(i=which(tabla_variables$Tipología =="TOPOGRÁFICAS"),  part = "body", bg =  "#FBE4D5") %>%
+  bg(i=which(tabla_variables$Tipología =="CLIMÁTICAS"),  part = "body", bg =  "#FBE4D5") %>%
+  bg(i=which(tabla_variables$Tipología =="USOS DEL SUELO"),  part = "body", bg =  "#FBE4D5") %>%
+  bg(i=which(tabla_variables$Tipología =="VEGETACIÓN"),  part = "body", bg =  "#FBE4D5") %>%
+  bg(i=which(tabla_variables$Tipología =="LITOLOGÍA"),  part = "body", bg =  "#FBE4D5") %>%
+  flextable::width(width=0.9)  %>%
+  set_table_properties(layout = "autofit")
+
+
+```
+
+# ANEXO 2. RELACIÓN DE VARIABLES UTILIZADAS EN EL MODELO DE DISTRIBUCIÓN DEL ÁGUILA IMPERIAL EN FUNCIÓN DEL CAMBIO CLIMÁTICO
+
+```{r}
+
+
+```

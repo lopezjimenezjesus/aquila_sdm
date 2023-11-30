@@ -1,15 +1,17 @@
 ##################################################
-## Project:
-## Script purpose:
-## Date:
-## Author:
+## Project: Aquila  adalberti monograph
+## Script purpose: Model future favourability
+## Date: `sys.Date()`
+## Author: Jesús Jiménez López
 ##################################################
 
-## Section: Set up
+##################################################
+## Section: SET UP ----
 ##################################################
 
 library(fuzzySim)
 library(modEvA)
+library(blorr)
 library(foreign)
 library(here)
 library(sf)
@@ -21,7 +23,8 @@ library(geodata)
 library(mapSpain)
 library(exactextractr)
 library(caret)
-library("gridExtra")    
+library(gridExtra)
+library(kableExtra)
 
 here::i_am('Aquila_adalberti_SDM.Rproj')
 
@@ -45,9 +48,26 @@ here::i_am('Aquila_adalberti_SDM.Rproj')
 # BIO18 = Precipitation of Warmest Quarter
 # BIO19 = Precipitation of Coldest Quarter
 
+## Functions ----
+# ################################################## 
+
+source("02_SCRIPTS/functions.R")
 
 ##################################################
-## Section: LOAD DATA
+## Section: configure
+##################################################
+
+library(yaml)
+
+config = yaml.load_file("config.yml")
+
+model_name <- config$configuration$folder_name
+
+paths <- create_folder(folder_name = config$configuration$folder_name) # create folder for saving output
+
+
+##################################################
+## Section: LOAD DATA  ----
 ##################################################
 
 
@@ -79,11 +99,7 @@ names(ext.raster)  <- c(paste0("Bio0", 1:9), paste0("Bio", 10:19))
 ## Section: load future bioclimate variables
 ##################################################
 
-load_list_of_tif <- function (path, period) {
-  x <- list.files(path = here::here(paste0(path_to_tif, period)), 
-             pattern = "*.tif", full.names = TRUE)
-  return(x)
-}
+
 
 path_to_tif <- "01_DATA/INPUT/bioclim_future/ext10KM/"
 
@@ -111,69 +127,16 @@ tiff_files_2041_2060_scaled <- rename_list_of_tif(lapply(tiff_files_2041_2060, r
 tiff_files_2061_2080_scaled <- rename_list_of_tif(lapply(tiff_files_2061_2080, resample_and_scale_tif, ext.raster))
 tiff_files_2081_2100_scaled <- rename_list_of_tif(lapply(tiff_files_2081_2100, resample_and_scale_tif, ext.raster))
 
-
 ## Get predictors from presence / abssence data
 ##################################################
 
-presvals <- extract(ext.raster, aa.sf %>% st_transform(st_crs(ext.raster)) %>% st_centroid() %>% st_coordinates())
+presence_predictors <- extract(ext.raster, aa.sf %>% st_transform(st_crs(ext.raster)) %>% st_centroid() %>% st_coordinates())  %>% scale()
 
-xy.scaled <- cbind(presvals, sp=aa.sf$sp)
-
-
-##################################################
-## Section: MODEL
-##################################################
-
-## Model 1: All variables
-##################################################
-
-null.model <- glm(formula = sp ~ 1, family = binomial, data=xy.scaled)
-
-
-
-bmod_aa_biohist <- step(null.model, direction = "forward", 
-                        keep = function(model, aic) list(model = model, aic = aic),
-                        scope = (~Bio01 + Bio02 + Bio03 + Bio04 + Bio05 + Bio06 +
-                                   Bio07 + Bio08 + Bio09 + Bio10 + 
-                                   Bio11 + Bio12 + Bio13 + Bio14 +
-                                   Bio15 + Bio16 + Bio17 + Bio18 + Bio19))
-
-
-## Model 2: by Feature selection
-##################################################
-
-# FDR
-
-xy.scaled.selection <- FDR(data=xy.scaled,sp.cols = 20, var.cols = 1:19)
-
-bioclim_predictors <- sort(rownames(xy.scaled.selection$select))
-
-xy.scaled.selection <- (xy.scaled  %>% dplyr::select(all_of(bioclim_predictors), "sp"))
-
-# Correlation
-
-cor_m <- cor(xy.scaled.selection %>% dplyr::select(!all_of("sp")))
-index <- sort(findCorrelation(cor_m))
-
-xy.scaled.selection <- xy.scaled.selection[,  -index] # remove correlated variables
-
-# xy.scaled.selection <- cbind(xy.scaled.selection, sp=xy$sp)
-
-null.model <- glm(formula = sp ~ 1, family = binomial, data=xy.scaled.selection)
-
-
-fmod_aa_biohist <- step(null.model, direction = "forward", 
-                        keep = function(model, aic) list(model = model, aic = aic),
-                        scope = (~Bio03 + Bio04 + Bio05 + Bio06 + Bio14 + Bio16))
-
-
-summary(fmod_aa_biohist)
-
+xy.scaled <- cbind(presence_predictors, sp=aa.sf$sp) %>% as.data.frame()
 
 ##################################################
-## Section:  Historical - Prediction and Favourability
+## Section: FUNCTIONS  ----
 ##################################################
-
 
 ## Functions
 ##################################################
@@ -188,7 +151,7 @@ historical_favourability <- function(historical_prediction, presence_absence_dat
   if(projection) {
     f <- terra::project(f, crs)
   }
-
+  
   return(f)
 }
 
@@ -224,18 +187,7 @@ extract_fav_from_grid_2 <- function(favourability_raster, umt_grid, plot_points=
   
 }
 
-## Plot both models
-##################################################
-
-plot(historical_prediction(ext.raster, bmod_aa_biohist))
-plot(historical_prediction(ext.raster, fmod_aa_biohist))
-
-
-##################################################
-## Section: HISTORICAL - FUTURE FAVOURABILITY
-##################################################
-
-## Functions
+## More Functions
 ##################################################
 
 future_prediction <- function(bioclim_predictor, model) {
@@ -245,8 +197,8 @@ future_prediction <- function(bioclim_predictor, model) {
 }
 
 future_favourability<- function(future_prediction, presence_absence ) {
-  f <-f <- Fav(obs = presence_absence, pred = future_prediction)
-  f
+  f <- Fav(obs = presence_absence, pred = future_prediction)
+  return(f)
 }
 
 
@@ -254,7 +206,7 @@ favourability_to_vector <- function(favourability_raster, breaks= c(-Inf, 0.2, 0
   fav.rast <-  exact_extract(favourability_raster, utm10, 'mean', append_cols  =TRUE)
   utm10.fav <- inner_join(utm10, fav.rast, by="CUADRICULA")
   utm10.fav$category <- cut(utm10.fav$mean, breaks = breaks, labels=labels)
-  utm10.fav <- utm10.fav %>% fill( category, .direction = 'updown' ) # na values due to grid resolution
+  #utm10.fav <- utm10.fav %>% fill( category, .direction = 'updown' ) # na values due to grid resolution
   return(utm10.fav)
 }
 
@@ -269,301 +221,101 @@ plot_favourability <- function(favourability_vector, name="", values =c("low" = 
   return(p)
 }
 
-plot_names <- function(name_of_plots) {
-  
-}
-
 ##################################################
-## bmod_aa_biohist model 
+## Section: MODELS  ----
 ##################################################
 
-## Historical
+## Model 1: All variables
 ##################################################
 
-## Plot bmod_aa_biohist model 
+null.model <- glm(formula = sp ~ 1, family = binomial, data=xy.scaled)
+
+bmod_aa_biohist <- step(null.model, direction = "forward", 
+                        keep = function(model, aic) list(model = model, aic = aic),
+                        scope = (~Bio01 + Bio02 + Bio03 + Bio04 + Bio05 + Bio06 +
+                                   Bio07 + Bio08 + Bio09 + Bio10 + 
+                                   Bio11 + Bio12 + Bio13 + Bio14 +
+                                   Bio15 + Bio16 + Bio17 + Bio18 + Bio19))
+
+bmod_aa_biohist.trimmmed <- modelTrim(bmod_aa_biohist)
+
+## Model 2: by Feature selection
 ##################################################
 
-epsg_code <- paste0("epsg:",st_crs(utm10)$epsg)
+# FDR
 
-plot(historical_favourability(historical_prediction(ext.raster, bmod_aa_biohist), 
-                              xy.scaled$sp, crs=epsg_code))
+xy.scaled.selection <- FDR(data=xy.scaled,sp.cols = 20, var.cols = 1:19)
 
-extract_fav_from_grid(historical_favourability(historical_prediction(ext.raster, bmod_aa_biohist), 
-                                               xy.scaled$sp, crs=epsg_code),utm10)
+bioclim_predictors <- sort(rownames(xy.scaled.selection$select))
 
-extract_fav_from_grid_2(historical_favourability(historical_prediction(ext.raster, bmod_aa_biohist), 
-                                                 xy.scaled$sp, crs=epsg_code),utm10)
+xy.scaled.selection <- (xy.scaled  %>% dplyr::select(all_of(bioclim_predictors), "sp"))
 
-## Future 
-##################################################
+# Correlation
 
-## 2021 - 2040
-##################################################
+cor_m <- cor(xy.scaled.selection %>% dplyr::select(!all_of("sp")))
+index <- sort(findCorrelation(cor_m, cutoff = 0.9))
 
-# 3 categories
+xy.scaled.selection <- xy.scaled.selection[,  -index] # remove correlated variables
 
-prediction_2021_2040 <-  lapply(tiff_files_2021_2040_scaled, future_prediction, bmod_aa_biohist)
+# xy.scaled.selection <- cbind(xy.scaled.selection, sp=xy$sp)
 
-favourability_2021_2040 <-  lapply(prediction_2021_2040, future_favourability, xy.scaled$sp)
+null.model <- glm(formula = sp ~ 1, family = binomial, data=xy.scaled.selection)
 
-favourability_vector_2021_2040 <- lapply(favourability_2021_2040, favourability_to_vector)
 
-favourability_2021_2040_plot <- lapply(favourability_vector_2021_2040, plot_favourability)
+fmod_aa_biohist <- step(null.model, direction = "forward", 
+                        keep = function(model, aic) list(model = model, aic = aic),
+                        scope = (~Bio03 + Bio04 + Bio05 + Bio06 + Bio14 + Bio16))
 
-favourability_2021_2040_plot_ <-lapply(
-  names(favourability_2021_2040_plot),
-  function(i) favourability_2021_2040_plot[[i]] + 
-    labs(title=i) + 
-    theme(plot.title = element_text(hjust = 0.5),legend.position="none")
-)
 
-
-do.call("grid.arrange", c(favourability_2021_2040_plot_, ncol = 2))
-
-
-# 2 categories
-
-favourability_vector_2021_2040 <- lapply(favourability_2021_2040, 
-                                         favourability_to_vector, 
-                                         breaks= c(-Inf, 0.5, Inf), labels=c("low","high"))
-
-favourability_2021_2040_plot <- lapply(favourability_vector_2021_2040, 
-                                       plot_favourability, 
-                                       values =c("low" = "red", "high" = "green"))
-
-favourability_2021_2040_plot_2 <-lapply(
-  names(favourability_2021_2040_plot),
-  function(i) favourability_2021_2040_plot[[i]] + 
-    labs(title=i) + 
-    theme(plot.title = element_text(hjust = 0.5),legend.position="none")
-)
-
-
-do.call("grid.arrange", c(favourability_2021_2040_plot_2, ncol = 2))
-
-## 2040 - 2061
-##################################################
-
-# 3 categories
-
-prediction_2041_2060 <-  lapply(tiff_files_2041_2060_scaled, future_prediction, bmod_aa_biohist)
-
-favourability_2041_2060 <-  lapply(prediction_2041_2060, future_favourability, xy.scaled$sp)
-
-favourability_vector_2041_2060 <- lapply(favourability_2021_2040, favourability_to_vector)
-
-favourability_2041_2060_plot <- lapply(favourability_vector_2041_2060, plot_favourability)
-
-favourability_2041_2060_plot_ <-lapply(
-  names(favourability_2021_2040_plot),
-  function(i) favourability_2041_2060_plot[[i]] + 
-    labs(title=i)  + 
-    theme(plot.title = element_text(hjust = 0.5),legend.position="none")
-)
-
-
-do.call("grid.arrange", c(favourability_2041_2060_plot_, ncol = 2))
-
-# 2 categories
-
-favourability_vector_2041_2060 <- lapply(favourability_2041_2060, 
-                                         favourability_to_vector, 
-                                         breaks= c(-Inf, 0.5, Inf), labels=c("low","high"))
-
-favourability_2041_2060_plot <- lapply(favourability_vector_2041_2060, 
-                                       plot_favourability, 
-                                       values =c("low" = "red", "high" = "green"))
-
-favourability_2041_2060_plot_2 <-lapply(
-  names(favourability_2041_2060_plot),
-  function(i) favourability_2041_2060_plot[[i]] + 
-    labs(title=i) + 
-    theme(plot.title = element_text(hjust = 0.5),legend.position="none")
-)
-
-
-do.call("grid.arrange", c(favourability_2041_2060_plot_2, ncol = 2))
-
-
-## 2061 - 2080
-##################################################
-
-# 3 categories
-
-prediction_2061_2080 <-  lapply(tiff_files_2061_2080_scaled, future_prediction, bmod_aa_biohist)
-
-favourability_2061_2080 <-  lapply(prediction_2061_2080, future_favourability, xy.scaled$sp)
-
-favourability_vector_2061_2080 <- lapply(favourability_2061_2080, favourability_to_vector)
-
-favourability_2061_2080_plot <- lapply(favourability_vector_2061_2080, plot_favourability)
-
-favourability_2061_2080_plot_ <-lapply(
-  names(favourability_2061_2080_plot),
-  function(i) favourability_2061_2080_plot[[i]] +
-    labs(title=i)  + 
-    theme(plot.title = element_text(hjust = 0.5),legend.position="none")
-)
-
-do.call("grid.arrange", c(favourability_2061_2080_plot, ncol = 2))
-
-# 2 categories
-
-favourability_vector_2061_2080 <- lapply(favourability_2061_2080, 
-                                         favourability_to_vector, 
-                                         breaks= c(-Inf, 0.5, Inf), labels=c("low","high"))
-
-favourability_2061_2080_plot <- lapply(favourability_vector_2061_2080, 
-                                       plot_favourability, 
-                                       values =c("low" = "red", "high" = "green"))
-
-favourability_2061_2080_plot_2 <-lapply(
-  names(favourability_2061_2080_plot),
-  function(i) favourability_2061_2080_plot[[i]] + 
-    labs(title=i) + 
-    theme(plot.title = element_text(hjust = 0.5),legend.position="none")
-)
-
-
-do.call("grid.arrange", c(favourability_2061_2080_plot_2, ncol = 2))
-
-
-
-## 2081 - 2100
-##################################################
-
-# 3 categories
-
-prediction_2081_2100 <-  lapply(tiff_files_2081_2100_scaled, future_prediction, bmod_aa_biohist)
-
-favourability_2081_2100 <-  lapply(prediction_2081_2100, future_favourability, xy.scaled$sp)
-
-favourability_vector_2081_2100 <- lapply(favourability_2081_2100, favourability_to_vector)
-
-favourability_2081_2100_plot <- lapply(favourability_vector_2081_2100, plot_favourability)
-
-favourability_2081_2100_plot_ <-lapply(
-  names(favourability_2081_2100_plot),
-  function(i) favourability_2081_2100_plot[[i]] +
-    labs(title=i)  + 
-    theme(plot.title = element_text(hjust = 0.5),legend.position="none")
-)
-
-do.call("grid.arrange", c(favourability_2081_2100_plot_, ncol = 2))
-
-# 2 categories
-
-favourability_vector_2081_2100 <- lapply(favourability_2081_2100, 
-                                         favourability_to_vector, 
-                                         breaks= c(-Inf, 0.5, Inf), labels=c("low","high"))
-
-favourability_2081_2100_plot <- lapply(favourability_vector_2081_2100, 
-                                       plot_favourability, 
-                                       values =c("low" = "red", "high" = "green"))
-
-favourability_2081_2100_plot_2 <-lapply(
-  names(favourability_2081_2100_plot),
-  function(i) favourability_2081_2100_plot[[i]] + 
-    labs(title=i) + 
-    theme(plot.title = element_text(hjust = 0.5),legend.position="none")
-)
-
-
-do.call("grid.arrange", c(favourability_2081_2100_plot_2, ncol = 2))
-
-## Layout all
-##################################################
-
-favourability_2021_2040_plot_
-favourability_2021_2040_plot_2
-
-favourability_2041_2060_plot_
-favourability_2041_2060_plot_2
-
-favourability_2061_2080_plot_
-favourability_2061_2080_plot_2
-
-favourability_2081_2100_plot_
-favourability_2081_2100_plot_2
-
-
-x1 <- c(rbind(favourability_2021_2040_plot_,favourability_2021_2040_plot_2))
-x2 <- c(rbind(favourability_2041_2060_plot_,favourability_2041_2060_plot_2))
-x3 <- c(rbind(favourability_2061_2080_plot_,favourability_2081_2100_plot_2))
-x4 <- c(rbind(favourability_2081_2100_plot_,favourability_2081_2100_plot_2))
-
-x <-  c(rbind(x1,x2, x3, x4))
-
-xx <- do.call("grid.arrange", c(x , ncol = 4))
-
-ggsave("04_RESULTS/02_figures/future_prediction.pdf", xx)
-
-ggsave(filename = "04_RESULTS/02_figures/future_prediction.png", 
-       plot = xx, dpi = "retina", width = 210, height = 297, units = "mm")
-
-
-library(ggpubr)
-
-commonplot <- ggarrange(plotlist = xx, ncol = 4, nrow = 8,
-                        common.legend = TRUE, legend="bottom")
-
-annotate_figure(commonplot, top = "Column 1 Title  Column 2 Title", left = "Row 2 Title  Row 1 Title")
-
-
-
-
-##################################################
-## Section: Metrics
-##################################################
-
-bmod_aa_biohist
-
-
-tidy_coef <- broom::tidy(bmod_aa_biohist)
-
-odd.ratio <- exp(coef(bmod_aa_biohist))
-
-
-foo <- cbind(tidy_coef, odd.ratio)
-
-
-library(kableExtra)
-knitr::kable(foo, "html") %>%
-  kable_styling("striped") %>% 
-  row_spec(0, background = "#F7CAAC") %>%
-  row_spec(seq(1,dim(tidy_coef)[1],2), background = "#FBE4D5")
-
-
-##################################################
-## fmod_aa_biohist 
-##################################################
+summary(fmod_aa_biohist)
 
 fmod_aa_biohist.trimmed <- modelTrim(fmod_aa_biohist)
 
-bmod_aa_biohist <- fmod_aa_biohist.trimmed # Lazy!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-## Plot fmod_aa_biohist model (bmod_aa_biohist)
+## Plot both models
+##################################################
+
+plot(historical_prediction(ext.raster, bmod_aa_biohist))
+plot(historical_prediction(ext.raster, fmod_aa_biohist))
+plot(historical_prediction(ext.raster, fmod_aa_biohist.trimmed))
+
+##################################################
+## Section: HISTORICAL - FUTURE FAVOURABILITY  ----
+##################################################
+
+##################################################
+## MODEL TO EXPLORE ----
+##################################################
+
+model_to_explore <- fmod_aa_biohist.trimmed
+
+
+write_rds(model_to_explore, file = file.path(paths$model_path, "future_model_selected.rds"))
+
+
+## Historical ----
 ##################################################
 
 epsg_code <- paste0("epsg:",st_crs(utm10)$epsg)
 
-plot(historical_favourability(historical_prediction(ext.raster, bmod_aa_biohist), 
+plot(historical_favourability(historical_prediction(ext.raster, model_to_explore), 
                               xy.scaled$sp, crs=epsg_code))
 
-extract_fav_from_grid(historical_favourability(historical_prediction(ext.raster, bmod_aa_biohist), 
+extract_fav_from_grid(historical_favourability(historical_prediction(ext.raster, model_to_explore), 
                                                xy.scaled$sp, crs=epsg_code),utm10)
 
-extract_fav_from_grid_2(historical_favourability(historical_prediction(ext.raster, bmod_aa_biohist), 
+extract_fav_from_grid_2(historical_favourability(historical_prediction(ext.raster, model_to_explore), 
                                                  xy.scaled$sp, crs=epsg_code),utm10)
 
-
+## Future  ----
+##################################################
 
 ## 2021 - 2040
 ##################################################
 
 # 3 categories
 
-prediction_2021_2040 <-  lapply(tiff_files_2021_2040_scaled, future_prediction, bmod_aa_biohist)
+prediction_2021_2040 <-  lapply(tiff_files_2021_2040_scaled, future_prediction, model_to_explore)
 
 favourability_2021_2040 <-  lapply(prediction_2021_2040, future_favourability, xy.scaled$sp)
 
@@ -574,7 +326,7 @@ favourability_2021_2040_plot <- lapply(favourability_vector_2021_2040, plot_favo
 favourability_2021_2040_plot_ <-lapply(
   names(favourability_2021_2040_plot),
   function(i) favourability_2021_2040_plot[[i]] + 
-    labs(title=i) + 
+    labs(title=paste0(i, " (2021-2040)")) + 
     theme(plot.title = element_text(hjust = 0.5),legend.position="none")
 )
 
@@ -595,7 +347,7 @@ favourability_2021_2040_plot <- lapply(favourability_vector_2021_2040,
 favourability_2021_2040_plot_2 <-lapply(
   names(favourability_2021_2040_plot),
   function(i) favourability_2021_2040_plot[[i]] + 
-    labs(title=i) + 
+    labs(title=paste0(i, " (2021-2040)")) + 
     theme(plot.title = element_text(hjust = 0.5),legend.position="none")
 )
 
@@ -607,7 +359,7 @@ do.call("grid.arrange", c(favourability_2021_2040_plot_2, ncol = 2))
 
 # 3 categories
 
-prediction_2041_2060 <-  lapply(tiff_files_2041_2060_scaled, future_prediction, bmod_aa_biohist)
+prediction_2041_2060 <-  lapply(tiff_files_2041_2060_scaled, future_prediction, model_to_explore)
 
 favourability_2041_2060 <-  lapply(prediction_2041_2060, future_favourability, xy.scaled$sp)
 
@@ -618,7 +370,7 @@ favourability_2041_2060_plot <- lapply(favourability_vector_2041_2060, plot_favo
 favourability_2041_2060_plot_ <-lapply(
   names(favourability_2021_2040_plot),
   function(i) favourability_2041_2060_plot[[i]] + 
-    labs(title=i)  + 
+    labs(title=paste0(i, " (2041-2060)")) + 
     theme(plot.title = element_text(hjust = 0.5),legend.position="none")
 )
 
@@ -638,7 +390,7 @@ favourability_2041_2060_plot <- lapply(favourability_vector_2041_2060,
 favourability_2041_2060_plot_2 <-lapply(
   names(favourability_2041_2060_plot),
   function(i) favourability_2041_2060_plot[[i]] + 
-    labs(title=i) + 
+    labs(title=paste0(i, " (2041-2060)")) + 
     theme(plot.title = element_text(hjust = 0.5),legend.position="none")
 )
 
@@ -651,7 +403,7 @@ do.call("grid.arrange", c(favourability_2041_2060_plot_2, ncol = 2))
 
 # 3 categories
 
-prediction_2061_2080 <-  lapply(tiff_files_2061_2080_scaled, future_prediction, bmod_aa_biohist)
+prediction_2061_2080 <-  lapply(tiff_files_2061_2080_scaled, future_prediction, model_to_explore)
 
 favourability_2061_2080 <-  lapply(prediction_2061_2080, future_favourability, xy.scaled$sp)
 
@@ -662,11 +414,11 @@ favourability_2061_2080_plot <- lapply(favourability_vector_2061_2080, plot_favo
 favourability_2061_2080_plot_ <-lapply(
   names(favourability_2061_2080_plot),
   function(i) favourability_2061_2080_plot[[i]] +
-    labs(title=i)  + 
+    labs(title=paste0(i, " (2061-2080)")) + 
     theme(plot.title = element_text(hjust = 0.5),legend.position="none")
 )
 
-do.call("grid.arrange", c(favourability_2061_2080_plot, ncol = 2))
+do.call("grid.arrange", c(favourability_2061_2080_plot_, ncol = 2))
 
 # 2 categories
 
@@ -681,7 +433,7 @@ favourability_2061_2080_plot <- lapply(favourability_vector_2061_2080,
 favourability_2061_2080_plot_2 <-lapply(
   names(favourability_2061_2080_plot),
   function(i) favourability_2061_2080_plot[[i]] + 
-    labs(title=i) + 
+    labs(title=paste0(i, " (2061-2080)")) + 
     theme(plot.title = element_text(hjust = 0.5),legend.position="none")
 )
 
@@ -695,7 +447,7 @@ do.call("grid.arrange", c(favourability_2061_2080_plot_2, ncol = 2))
 
 # 3 categories
 
-prediction_2081_2100 <-  lapply(tiff_files_2081_2100_scaled, future_prediction, bmod_aa_biohist)
+prediction_2081_2100 <-  lapply(tiff_files_2081_2100_scaled, future_prediction, model_to_explore)
 
 favourability_2081_2100 <-  lapply(prediction_2081_2100, future_favourability, xy.scaled$sp)
 
@@ -706,7 +458,7 @@ favourability_2081_2100_plot <- lapply(favourability_vector_2081_2100, plot_favo
 favourability_2081_2100_plot_ <-lapply(
   names(favourability_2081_2100_plot),
   function(i) favourability_2081_2100_plot[[i]] +
-    labs(title=i)  + 
+    labs(title=paste0(i, " (2081-2100)")) + 
     theme(plot.title = element_text(hjust = 0.5),legend.position="none")
 )
 
@@ -725,8 +477,8 @@ favourability_2081_2100_plot <- lapply(favourability_vector_2081_2100,
 favourability_2081_2100_plot_2 <-lapply(
   names(favourability_2081_2100_plot),
   function(i) favourability_2081_2100_plot[[i]] + 
-    labs(title=i) + 
-    theme(plot.title = element_text(hjust = 0.5),legend.position="none")
+    labs(title=paste0(i, " (2081-2100)")) + 
+    theme(plot.title = element_text(hjust = 0.5),legend.position="none") 
 )
 
 
@@ -744,41 +496,188 @@ x <-  c(rbind(x1,x2, x3, x4))
 
 xx <- do.call("grid.arrange", c(x , ncol = 4))
 
-ggsave("04_RESULTS/02_figures/future_prediction.pdf", xx)
+lapply(x, function(p) {
+  file_name <-  paste0(p$labels$title, '.png')
+  ggsave(file_name, p  + labs(title = ""), path = '04_RESULTS/02_figures',device = "png")
+})
 
-ggsave(filename = "04_RESULTS/02_figures/future_prediction.png", 
+
+ggsave(filename=file.path(paths$figure_path, "future_prediction.pdf"), plot=xx)
+
+ggsave(filename = file.path(paths$figure_path, "future_prediction.png"), 
        plot = xx, dpi = "retina", width = 210, height = 297, units = "mm")
 
 
-library(ggpubr)
+## Plot all in a grid
+##################################################
 
-commonplot <- ggarrange(plotlist = xx, ncol = 4, nrow = 8,
-                        common.legend = TRUE, legend="bottom")
+library(patchwork)
+library(grid)
 
-annotate_figure(commonplot, top = "Column 1 Title  Column 2 Title", left = "Row 2 Title  Row 1 Title")
+plot_grid <- function() {
+
+p126_2cat <- x1[[2]] +labs(title="2021-2040") +  
+  ylab("126")  + 
+  theme(axis.title.y = element_text(angle = 90, hjust = -0.35, size = 14)) + 
+  x2[[2]] +labs(title="2041-2060") + 
+  x3[[2]] +labs(title="2061-2080") +  
+  x4[[2]] +labs(title="2081-2100") +
+  plot_layout(nrow = 1, byrow = FALSE)
+
+p126_3cat <- x1[[1]] + labs(title="") + x2[[1]] + labs(title="") + x3[[1]] +
+  labs(title="") + x4[[1]] + labs(title="")  + plot_layout(nrow = 1, byrow = FALSE)
+
+p245_2cat <- x1[[4]] + labs(title="") +    
+  ylab("245")  + 
+  theme(axis.title.y = element_text(angle = 90, hjust = -0.35, size = 14)) + 
+  x2[[4]] + labs(title="") + 
+  x3[[4]] + labs(title="") +   
+  x4[[4]] + labs(title="") + 
+  plot_layout(nrow = 1, byrow = FALSE) 
+
+p245_3cat <- x1[[3]] + labs(title="") + x2[[3]] + labs(title="")  + x3[[3]] + 
+  labs(title="") + x4[[3]] + labs(title="")  +
+  plot_layout(nrow = 1, byrow = FALSE)
+
+p370_2cat <- x1[[6]]  + labs(title="") + 
+  ylab("370")  + 
+  theme(axis.title.y = element_text(angle = 90, hjust = -0.35, size = 14)) + 
+  x2[[6]]  + labs(title="") +  
+  x3[[6]]  + labs(title="") + 
+  x4[[6]]  + labs(title="") + 
+  plot_layout(nrow = 1, byrow = FALSE) 
+
+p370_3cat <- x1[[5]] + labs(title="")  + x2[[5]] + labs(title="")  + x3[[5]] + labs(title="")  +
+  x4[[5]] + labs(title="")  + plot_layout(nrow = 1, byrow = FALSE)
+
+
+p585_2cat <- x1[[8]]  + labs(title="") + 
+  ylab("585")  + 
+  theme(axis.title.y = element_text(angle = 90, hjust = -0.35, size = 14)) + 
+  x2[[8]]  + labs(title="") +  
+  x3[[8]]  + labs(title="") +   
+  x4[[8]]  + labs(title="") + 
+  plot_layout(nrow = 1, byrow = FALSE) 
+
+p585_3cat <- x1[[7]] + labs(title="") + x2[[7]] + labs(title="")+ x3[[7]] + labs(title="")  +
+  x4[[7]] + labs(title="")  + plot_layout(nrow = 1, byrow = FALSE)
+
+
+h_patch <- p126_2cat / p126_3cat + plot_layout(nrow = 2, byrow = FALSE) &  theme(plot.margin = unit(c(0,1,0,1), "cm"))
+
+h_patch2 <- p245_2cat / p245_3cat + plot_layout(nrow = 2, byrow = FALSE) &  theme(plot.margin = unit(c(0,1,0,1), "cm"))
+
+h_patch3 <- p370_2cat / p370_3cat + plot_layout(nrow = 2, byrow = FALSE)  &  theme(plot.margin = unit(c(0,1,0,1), "cm"))
+
+h_patch4 <- p585_2cat / p585_3cat + plot_layout(nrow = 2, byrow = FALSE)  &  theme(plot.margin = unit(c(0,1,0,1), "cm"))
+
+
+future_layout <- (wrap_elements(h_patch) +
+  # labs(tag = "126") +
+  theme(
+    plot.tag = element_text(size = rel(0.5), angle = 90),
+    plot.tag.position = "left"
+  )) /  plot_spacer() / 
+  
+  (wrap_elements(h_patch2)  +
+     # labs(tag = "245") +
+     theme(
+       plot.tag = element_text(size = rel(0.5), angle = 90),
+       plot.tag.position = "left"
+     )) /  plot_spacer() / 
+  
+  (wrap_elements(h_patch3)  +
+     # labs(tag = "245") +
+     theme(
+       plot.tag = element_text(size = rel(1), angle = 90),
+       plot.tag.position = "left"
+     ))  /  plot_spacer() / 
+  
+  (wrap_elements(h_patch4)  +
+     # labs(tag = "245") +
+     theme(
+       plot.tag = element_text(size = rel(1), angle = 90),
+       plot.tag.position = "left"
+     )) +  
+  plot_layout(heights = c(8, 0, 8, 0, 8, 0, 8), guides = "collect")
+
+  return(future_layout)
+}
+
+future_layout <- plot_grid()
+
+ggsave(filename = file.path(paths$figure_path, "future_prediction_2.png"), 
+       plot = future_layout,  dpi = "retina", width = 210, height = 297, units = "mm")
 
 
 
 
 ##################################################
-## Section: Metrics
+## Section: Metrics ----
 ##################################################
 
-bmod_aa_biohist
+## model_to_explore
+
+# hosmer
+
+blr <- blr_test_hosmer_lemeshow(model_to_explore)
+
+blr
+
+# percent cells 
+
+fav_3_cat <- extract_fav_from_grid(historical_favourability(historical_prediction(ext.raster, model_to_explore), 
+                                               xy.scaled$sp, crs=epsg_code),utm10)
+
+summary(fav_3_cat$data)
+
+fav_2_cat <- extract_fav_from_grid_2(historical_favourability(historical_prediction(ext.raster, model_to_explore), 
+                                                 xy.scaled$sp, crs=epsg_code),utm10)
+summary(fav_2_cat$data)
 
 
-tidy_coef <- broom::tidy(bmod_aa_biohist)
+# Plot 
 
-odd.ratio <- exp(coef(bmod_aa_biohist))
+grid.arrange(fav_2_cat + theme(legend.position = "none"), fav_3_cat + theme(legend.position = "none"), ncol=2)
+
+# table of coefficients
 
 
-foo <- cbind(tidy_coef, odd.ratio)
+build_coefficient_table <- function(model) {
+  
+  tidy_coef <- broom::tidy(model)
+  
+  odd.ratio <- exp(coef(model))
+  
+  wald_coef <- sapply(1:length(coef(model)), function(x){
+    temp <- aod::wald.test(b=coef(model), Sigma=vcov(model), Terms = x)
+    temp$result$chi2[1]
+  })
+  
+  
+  tidy_coef <- cbind(tidy_coef, odd.ratio) %>% cbind(wald=wald_coef)
+  
+  colnames(tidy_coef) <- c("Variables", "β", "ET", "statistic", "Sig.", "Exp(B)", "Wald")
+  
+  tidy_coef = tidy_coef[-1,] # remove intersect
+  
+  
+  tidy_coef <- tidy_coef %>% dplyr::select(c("Variables", "β", "ET","Wald", "Sig.", "Exp(B)"))
+  return(tidy_coef)
+  
+}
+
+tidy_coef <- build_coefficient_table(model_to_explore)
 
 
-library(kableExtra)
+write_rds(tidy_coef, file = file.path(paths$model_path, "tabla_coef_future.rds"))
 
-knitr::kable(foo, "html") %>%
+
+
+
+knitr::kable(tidy_coef, "html") %>%
   kable_styling("striped") %>% 
   row_spec(0, background = "#F7CAAC") %>%
   row_spec(seq(1,dim(tidy_coef)[1],2), background = "#FBE4D5")
+
 

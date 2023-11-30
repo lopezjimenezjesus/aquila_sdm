@@ -1,0 +1,4 @@
+configuration:
+ folder_name : "model_10"
+ vif_threshold : 10
+ model_trimmed: TRUE

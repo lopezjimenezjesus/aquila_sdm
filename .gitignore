@@ -47,3 +47,10 @@ po/*~
 
 # RStudio Connect folder
 rsconnect/
+
+
+## custom
+
+*.png
+
+04_RESULTS/*

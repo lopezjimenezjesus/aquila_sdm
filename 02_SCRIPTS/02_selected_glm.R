@@ -1,5 +1,5 @@
 ##################################################
-## Project:
+## Project: 
 ## Script purpose:
 ## Date:
 ## Author:
@@ -10,6 +10,7 @@
 
 library(fuzzySim)
 library(modEvA)
+library(mecofun)
 library(foreign)
 library(here)
 library(sf)
@@ -20,12 +21,11 @@ library(blorr)
 library(gridExtra)
 library(broom)
 library(flextable)
+library(kableExtra)
+library(mecofun)
+
 
 here::i_am('Aquila_adalberti_SDM.Rproj')
-
-# x <- st_read(dsn = here::here('01_DATA/INPUT/shp/CUTM10_AQUADA.shp')) %>% select('CUADRICULA', 'AQUADA') %>% st_drop_geometry()
-# head(x)
-
 
 ## Load data
 ##################################################
@@ -36,155 +36,79 @@ x <- read_excel(path = here::here('01_DATA/INPUT/CUTM10extVariables.xlsx'), shee
 
 y <- read_excel(path = here::here('01_DATA/INPUT/Presencia_Imperial_CUTM10.xlsx'), sheet = "Presencia")
 
-
 xy <- right_join(x,y, by="CUADRICULA")
 
 
-# filter variables
-
-xy <- xy %>% dplyr::select(-c("CUADRICULA", "Ori_W", "Ori_S",
-                              "Area_ha", "Area_en_Ex", "Percent_Ex",
-                              "La", "Lo", "Lo2", "La2", "LaLoVaria",
-                              "CazaMe", "CazaMa", 
-                              "DenArena", "DenCaliza",  "DenGranito", "DenPizarra",
-                              "DenEmbalse", "DenHidro",
-                              "S", "SE", "SW", "W", "N", "N", "NW", "NE", "E"))
-
 paste(names(xy)[1:dim(xy)[2]], collapse = " + ")
 
+metadata <- readr::read_delim(file = "01_DATA/OUTPUT/metadata_predictors.csv")
 
-## Functions
+
+paisaje <- read_csv(file = "01_DATA/OUTPUT/paisaje_predictors.csv")
+
+xy <- xy %>% dplyr::select(all_of(c(paisaje$predictors_names, "AQUADA")))   %>% 
+   dplyr::select(-c("La", "Lo", "Lo2", "La2", "LaLoVaria"))  %>% 
+   dplyr::select(-c("CazaMe", "CazaMa")) %>%  # correlated with other predictors
+   dplyr::select(-c( "TABSMAX1", "TABSMAX7", "TABSMIN1", "TABSMIN7")) %>% 
+   dplyr::select(-c( "RAINMAX1", "RAINMAX7","RAINDAY1","RAINDAY7"))# correlated with other predictors
+xy
+
+## Functions ----
+# ################################################## 
+
+source("02_SCRIPTS/functions.R")
+
+##################################################
+## Section: configure
 ##################################################
 
+library(yaml)
 
+config = yaml.load_file("config.yml")
 
+model_name <- config$configuration$folder_name
 
-fav_step_models <- function(model) {
-  # Save intermediate models in a list
-  n_models <- dim(model[["keep"]])[2]
-  l <- list()
-  R2 <- list()
-  for(i in seq(1:n_models)) {
-    l[[i]] <- Fav(model[["keep"]][["model", i]])
-    R2[[i]] <-  with(summary(model[["keep"]][["model", i]]), 1 - deviance/null.deviance)
-  }
-  
-  l_R2 <- list(l, R2)
-  
-  return(l_R2)
-}
-
-plot_fav_step_models <- function(fav_R2_list) {
-  # Save favourability ggplot from intermediate models in a list
-  n_fav <-length(fav_R2_list[[1]])
-  p <- list()
-  for(i in seq(1:n_fav)) {
-    fav <- fav_R2_list[[1]][[i]]
-    aq <- data.frame(CUADRICULA=x$CUADRICULA, sp=xy$AQUADA, f=fav)
-    
-    aq.sf <- inner_join(utm10, aq, by="CUADRICULA")
-    
-    aq.sf$category <- cut(aq.sf$f, breaks=c(-Inf, 0.2, 0.8, Inf), labels=c("low","middle","high"))
-    
-    p[[i]] <- ggplot(data=aq.sf) +
-      geom_sf(aes(fill=category)) +
-      scale_fill_manual(values = c("low" = "red", "middle" = "yellow", "high" = "green")) +
-      # geom_sf(data=st_centroid(aq.sf) %>% dplyr::filter(sp==1)) +
-      annotate(geom = "text", x = 316696.7, y = 4240000, 
-               label = paste("Paso: ", i, "\n", "R2=", round(fav_R2_list[[2]][[i]],3)),
-               color = "black", size = 2) +
-      guides(fill="none") +
-      theme_void()
-    
-  }
-  return(p)
-}
-
-
-fav_to_spatial_grid <- function(model, sp_df, grid_code_predictor, utm_grid) {
-  # build a spatial grid based on favourability values
-  fav <- Fav(model.glm)
-  df <- data.frame(CUADRICULA=grid_code_predictor[["CUADRICULA"]], occ=sp_df[["AQUADA"]], f=fav)
-  aq.sf <- inner_join(utm_grid, df, by="CUADRICULA")
-  aq.sf$category <- cut(aq.sf$f, breaks=c(-Inf, 0.2, 0.8, Inf), labels=c("low","middle","high"))
-  return(aq.sf)
-}
-
-
-
+paths <- create_folder(folder_name = config$configuration$folder_name) # create folder for saving output
 
 ##################################################
 ## Section: Model not scaled
 ##################################################
 
+## Collinearity: VIF
+##################################################
+
+#https://quantifyinghealth.com/vif-threshold/
+
+mult1 <- multicol(subset(xy, select = 1:(ncol(xy)-1)))  # especificar las columnas con variables!
+mult1  # muestra la multicolinealidad
+
+
+VIF_threshold <- config$configuration$vif_threshold
+
+xy.vif <- subset(mult1, VIF < VIF_threshold)
+
+xy.subset <- xy %>% dplyr::select(rownames(xy.vif), AQUADA) 
+
 ## FDR - Correlation
 ##################################################
 
-xy.fdr <- FDR(data = xy, sp.cols = length(xy), var.cols = 1:(length(xy)-1), q = 0.1)
+xy.fdr <- FDR(data = xy.subset, sp.cols = length(xy.subset), var.cols = 1:(length(xy.subset)-1), q = 0.05)
 
 xy.fdr$exclude
 
-paste(rownames(xy.fdr$select)[1:length(rownames(xy.fdr$select))], collapse = " + ")
+variables_to_model <- paste(rownames(xy.fdr$select)[1:length(rownames(xy.fdr$select))], collapse = " + ")
 
-## Fit
+## Fit model
 ##################################################
+
 
 null.model <- glm(AQUADA ~ 1, data=xy, family = binomial)
 
 model.glm <- step(null.model, direction='forward',
                   keep =  function(model, aic) list(model = model, aic = aic),
-                  scope = (~Cul_len + TABSMAX1 + Ciervo + PSpr + QUESUR + Reg + 
-                             Cul_het + Sup_arti + RAINDAY1 + DenCap18 + QFAGPY + 
-                             P_DIAS + QUEILE + Ptot + P_prim + NumPoblaD + Deh +
-                             LongCarrD + Psum + DenPobla + EUCSPP + Pwin + Arroz + 
-                             SinVeg + DistPobla + Pene + Pjul + LongElectD + CASSAT +
-                             Jabali + Pvar + Tmax7 + Paut + RAINDAY7 + Conejo +
-                             RAINMAX7 + TABSMIN1 + Tsum))
+                  scope = paste0("~", variables_to_model))
 
-
-saveRDS(model.glm, file="04_RESULTS/01_models/glm_model.rds")
-
-## Favourability
-##################################################
-
-aq.sf <- fav_to_spatial_grid(model.glm, xy, x, utm10)
-
-
-## Section: Plot favourability
-##################################################
-
-plot_fav <- function(sf_dataframe, include_presence_points=TRUE) {
-  p <- ggplot(data=sf_dataframe) +
-    geom_sf(aes(fill=category)) +
-    scale_fill_manual(values = c("low" = "red", "middle" = "yellow", "high" = "green")) +
-    theme_void()
-
-  if(include_presence_points) {
-    p <- p + geom_sf(data=st_centroid(sf_dataframe) %>% dplyr::filter(occ==1))
-  }
-  return(p)
-} 
-
-
-p <- plot_fav(aq.sf, FALSE)
-p
-
-ggsave(filename = '04_RESULTS/02_figures/fav_historical_model.png', 
-       plot = p, dpi = "retina")
-
-
-## Plot intermediate models 
-##################################################
-
-
-fav_list <- fav_step_models(model.glm)
-fav_plots <- plot_fav_step_models(fav_list)
-
-fav_plots <-  do.call("grid.arrange", c(fav_plots, ncol=3))
-
-ggsave(filename = '04_RESULTS/02_figures/intermediate_models_fav.png', 
-       plot = fav_plots, dpi = "retina", width = 210, height = 297, units = "mm")
-
+summary(model.glm)
 
 
 ## Trimmed model
@@ -192,114 +116,161 @@ ggsave(filename = '04_RESULTS/02_figures/intermediate_models_fav.png',
 
 model.glm.trimmed <- modelTrim(model.glm)
 
-saveRDS(model.glm.trimmed, file="04_RESULTS/01_models/glm_model_trimmed.rds")
+saveRDS(model.glm.trimmed, file= file.path(paths$model_path, 'glm_model_trimmed.rds'))
 
+
+# Names of our variables:
+
+pred <- names(coefficients(model.glm)[2:length(coefficients(model.glm))])
+
+
+## save metadata
+
+saveRDS(model.glm, file=file.path(paths$model_path, "glm_model.rds"))
+
+
+##################################################
+## Section: Favourability
+##################################################
+
+aq.sf <- fav_to_spatial_grid(model.glm.trimmed, xy, x, utm10)
+
+aq10cat.sf <- fav_to_spatial_grid_10cat(model.glm.trimmed, xy, x, utm10)
+
+## Section: Plot favourability
+##################################################
+
+
+p <- plot_fav(aq.sf, FALSE)
+p
+
+ggsave(filename = file.path(paths$figure_path, 'fav_historical_model_c3.png'), 
+       plot = p, dpi = "retina")
+
+
+p10 <- plot_fav_10cat(aq10cat.sf, FALSE)
+p10
+ggsave(filename = file.path(paths$figure_path, 'fav_historical_model_c10.png'), 
+       plot = p10, dpi = "retina")
+
+
+library(patchwork)
+p10 + p
+
+ggsave(filename =  file.path(paths$figure_path, 'fav_historical_model_c3_10.png'), 
+         plot = p10 + p, dpi = "retina")
+
+
+## Plot intermediate models 
+##################################################
+
+fav_list <- fav_step_models(model.glm) # use model not trimmed for exploring intermediate steps
+fav_plots <- plot_fav_step_models(fav_list)
+
+fav_plots <-  do.call("grid.arrange", c(fav_plots, ncol=3))
+
+ggsave(filename = file.path(paths$figure_path, 'intermediate_models_fav.png'), 
+       plot = fav_plots, dpi = "retina", width = 210, height = 297, units = "mm")
+
+ggsave(filename =  file.path(paths$figure_path, 'intermediate_models_fav.svg'), 
+       plot = fav_plots, dpi = "retina", width = 210, height = 297, units = "mm")
 
 ## Variance partition
 ##################################################
 
 dput(colnames(model.glm.trimmed$data))
 
+#dput(names(coef(model.glm)))[-1]
 
-var_groups <- data.frame(vars =c("PSpr", "TABSMAX1", "QUESUR", "RAINDAY1", "Ciervo", 
-                                 "Paut", "DenCap18", "Reg", "Conejo", "Pene", "Pvar", "LongElectD"),
-                         groups = c("Factores ambientales Abióticos", "Factores ambientales Abióticos",
-                                    "Factores ambientales Bióticos",   "Factores ambientales Abióticos", 
-                                    "Factores ambientales Bióticos",  "Factores ambientales Abióticos", 
-                                    "Factores ambientales Antrópicos", "Factores ambientales Abióticos",
-                                    "Factores ambientales Bióticos",  "Factores ambientales Abióticos", 
-                                    "Factores ambientales Abióticos", "Factores ambientales Antrópicos"))
+predictors_table <- readr::read_csv(file = "01_DATA/OUTPUT/metadata_predictors.csv")
 
-png(filename="04_RESULTS/02_figures/variance_plot.png", width = 800, height = 800)
-varPart(model = model.glm.trimmed, groups = var_groups,plot.unexpl=FALSE, cex.names	=1)
+# get groups from predictor_table
+var_groups <- data.frame(vars=names(coef(model.glm.trimmed))[-1],
+                         groups=predictors_table[predictors_table$predictors_names %in% dput(names(coef(model.glm.trimmed)))[-1], "factores"])
+
+
+png(filename=file.path(paths$figure_path, "variance_plot.png"), width = 800, height = 800)
+varPart(model = model.glm.trimmed, groups = var_groups,plot.unexpl=FALSE, cex.names	=1, pred.type = "P")
 dev.off()
 
-png(filename="04_RESULTS/02_figures/variance_plot_color.png", width = 800, height = 800)
+png(filename=file.path(paths$figure_path, "variance_plot_color.png"), width = 800, height = 800)
 varPart(model = model.glm.trimmed, groups = var_groups, pred.type = "P", colr = TRUE,plot.unexpl=FALSE, cex.names	=1)
 dev.off()
 
+# add sign of coefficients
+
+var_groups <- var_groups %>% mutate(
+  sign= if_else(do.call(
+    what = function(x) {x>0}, list(coef(model.glm.trimmed)[2:length(coef(model.glm.trimmed))])),
+                "+", "-")) %>% 
+  mutate(var_sign=paste0(vars, "(", sign, ")"))
+
+# format to report
+
+var_groups_w <- pivot_wider(data = var_groups, names_from =  factores, values_from = var_sign) 
+
+B <- paste(unique(na.omit(var_groups_w$`Factores Ambientales Bióticos`)))
+A <- paste(unique(na.omit(var_groups_w$`Factores Ambientales Abióticos`)))
+An <-  paste(unique(na.omit(var_groups_w$`Factores Antrópicos`)))
+
+BAAn <- data.frame(`Factores ambientales Bióticos`= toString(B),
+          `Factores ambientales Abióticos`= toString(A),
+          `Factores ambientales Antrópicos` = toString(An))
+
+
+saveRDS(BAAn, file = file.path(paths$model_path, "BAAn.rds"))
+saveRDS(var_groups, file= file.path(paths$model_path, "model_variables_factor.rds"))
+
+#
+
+knitr::kable(BAAn, col.names = c("Factores ambientales Bióticos",
+                                 "Factores ambientales Abióticos",
+                                 "Factores ambientales Antrópicos")) %>%
+  kable_styling(full_width = F)
+
 
 ##################################################
-## Section: Coefficients, metrics, etc
+## Section: Coefficients, matrix and metrics  ----
 ##################################################  
 
-
-## Coefficients
-##################################################
-
-tidy_coef <- broom::tidy(model.glm.trimmed)
-
-odd.ratio <- exp(coef(model.glm.trimmed))
-
-
-foo <- cbind(tidy_coef, odd.ratio)
-
-
-library(kableExtra)
-tidy_coef.kable <-  knitr::kable(tidy_coef, "html") %>%
-  kable_styling("striped") %>% 
-  row_spec(0, background = "#F7CAAC") %>%
-  row_spec(seq(1,dim(tidy_coef)[1],2), background = "#FBE4D5")
-
-tidy_coef.flex <- flextable(tidy_coef)
-
-saveRDS(tidy_coef.flex, file = "01_DATA/OUTPUT/foo_flex.rds")
-
-saveRDS(tidy_coef.kable, file = "01_DATA/OUTPUT/foo_kable.rds")
-
-save_kable(tidy_coef.kable, file = "01_DATA/OUTPUT/foo_kable.png")
-
-coeficients_df <- tidy(model.glm.trimmed) # coefficients
-
-
-glance(model.glm.trimmed) #  summary statistics
-
-head(augment(model.glm)) #  fitted values and residuals
-
-## de Hosmer y Lemeshow 
+## Coefficients ----
 ##################################################
 
 
-blr <- blr_test_hosmer_lemeshow(model.glm.trimmed)
-blr
+tidy_coef <- build_coef_table(model.glm.trimmed)
 
-## Wald 
+write_rds(tidy_coef, file = file.path(paths$model_path, "tabla_coef.rds"))
+
+## Confussion matrix  ----
 ##################################################
-
-summary(model.glm.trimmed, statistic = "Wald")
-
-w <- waldtest(object = model.glm)
-drop1(model.glm, test = "LRT") 
-
-
-library(aod)
-
-foo <- aod::wald.test(Sigma = vcov(model.glm.trimmed), b = coef(model.glm.trimmed), Terms = 1)
-
-foo$result$chi2
-
-
-## Confussion matrix and metrics
-##################################################
-
-library(mecofun)
-
 
 crosspred_glm <- mecofun::crossvalSDM(model.glm.trimmed, traindat= xy,
                                       colname_pred=colnames(xy)[1:(dim(xy)[2]-1)], 
                                       colname_species = "AQUADA", kfold= 10)
 
-mecofun::evalSDM(xy$AQUADA, crosspred_glm)
+evalsdm <-  mecofun::evalSDM(xy$AQUADA, crosspred_glm)
 
-confusionMatrix(obs = xy$AQUADA, pred =  Fav(model.glm), thresh = 0.5)
 
-tm <- threshMeasures(model = model.glm, ylim = c(0, 1), thresh = 0.5)
-tm <- threshMeasures(model = model.glm, ylim = c(0, 1), thresh = "preval")
+tm <- threshMeasures(model = model.glm.trimmed, ylim = c(0, 1), thresh = 0.5)
 
-cm <- tm$ConfusionMatrix
+c_m <-  as.data.frame(tm$ConfusionMatrix)
 
-cm <- as.data.frame(cm)
+rownames(c_m) <- c("Favorable", "Desfavorable")
+colnames(c_m) <- c("Presencia", "Ausencia")
+c_m
 
-rownames(cm) <- c("Favorable", "Desfavorable")
-colnames(cm) <- c("Presencia", "Ausencia")
-cm
+saveRDS(c_m, file =  file.path(paths$model_path, "confusion_matrix.rds"))
+
+## Metrics
+##################################################
+
+blr <- blr_test_hosmer_lemeshow(model.glm.trimmed)
+
+model.metrics <- data.frame(AUC=evalsdm[c("AUC")], 
+                            UPR=tm$ThreshMeasures[c("UPR"),],
+                            OPR=tm$ThreshMeasures[c("OPR"),],
+                            HyL=blr$pvalue)
+model.metrics
+
+saveRDS(object = model.metrics, file =  file.path(paths$model_path, "model_metrics.rds"))
+

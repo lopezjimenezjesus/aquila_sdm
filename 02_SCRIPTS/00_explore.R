@@ -7,7 +7,7 @@
 
 
 ##################################################
-## Section: SET UP
+## Section: SET UP ----
 ##################################################
 
 
@@ -22,6 +22,7 @@ library(here)
 library(sf)
 library(readxl)
 library(tidyverse)
+library(skimr)
 library(corrplot)
 library(GGally)
 library(gridExtra)
@@ -29,7 +30,11 @@ library(gridExtra)
 here::i_am('Aquila_adalberti_SDM.Rproj')
 
 
-## Section: Data
+##################################################
+## Section: DATA ----
+##################################################
+
+## Section: Load
 ##################################################
 
 
@@ -41,11 +46,112 @@ y <- read_excel(path = here::here('01_DATA/INPUT/Presencia_Imperial_CUTM10.xlsx'
 
 xy <- right_join(x,y, by="CUADRICULA")
 
+head(xy)
+
+colnames(xy)[dim(xy)[2]] <- "occ" # occurrence
+
+glimpse(xy)
+
+skim
+
 paste(names(xy)[1:107], collapse = " + ")
 
-
-## Functions
+## Section: Create a metadata table with predictors 
 ##################################################
+
+## Join metadata table with predictors from dataset
+## useful to retrieve predictors based on Paisaje, Habitat and NestSite
+
+# read predictors metadata from csv 
+
+metadata_predictors <- readr::read_delim('01_DATA/INPUT/metadatos_variables_predictoras.csv', delim = ";", locale=locale(encoding="latin1")) 
+
+colnames(metadata_predictors) <- c("tipologia", "nombre", "descripcion", "A_Paisaje", "B_Habitat", "C_NestSite")
+
+metadata_predictors <- dplyr::add_row(
+  metadata_predictors,
+  tipologia = "VEGETACIÓN",
+  nombre = "Pino",
+  descripcion = "% de FCC de Pinus (8)",
+  A_Paisaje = "x",
+  B_Habitat = "x",
+  C_NestSite = "x",
+  .before = 91
+)
+
+
+# get predictors names from dataset and add missing predictors names
+
+predictors_names <- c(colnames(xy)[5:(length(colnames(xy))-1)], c("AlturaSup", "AlturaInf"))
+
+predictors_names <- c("ALT_MAX", "ALT_MIN", "ALT_MED", "ALT_RANGE", "AlturaSup", "AlturaInf",
+                      "Tri_mean", "Slope_mean", "Ori_W", "Ori_S", "E", "N", "NE", "NW", 
+                      "S", "SE", "SW", "W", "La", "Lo", "La2", "Lo2", "LaLoVaria", 
+                      "Tmed", "Rmtd", "Isot", "Test", "Tmax7", "Tmax1", "Tran", "Ptot", "Pvar", 
+                      "P_prim", "Taut", "TSpr", "Tsum", "Twin", "Pwin", "Pene", "Pjul", 
+                      "Paut", "PSpr", "Psum", "RadSol", "P_DIAS", "TABSMAX1", "TABSMAX7", 
+                      "TABSMIN1", "TABSMIN7", "FROSTDAY", "RAINMAX1", "RAINMAX7", "RAINDAY1", "RAINDAY7", 
+                      "DenPobla", "DistPobla", "NumPoblaD", "DistCarre", "LongCarrD", 
+                      "DistCamin", "LongCaminD", "DistElect", "LongElectD", 
+                      "Arroz", "Cul_sec", "Cul_len", "Prad", "Cul_het", "Deh", "Bosq", 
+                      "Mat", "Agu_cont", "Pas_nat", "Reg", "Sup_arti", "SinVeg", "NP", 
+                      "PD", "LPI", "LSI", "AREA_MN", "FRAC_AM", "CONTAG", "SHDI", "SHEI", 
+                      "QFAGPY", "QUESUR", "QUEILE", "CASSAT", "EUCSPP", "PINO", "AltVeg", 
+                      "DenCap18", "DenOvi19", "DenPor19", "DenVac19", "CazaMa", "CazaMe", 
+                      "Conejo", "Perdiz", "Ciervo", "Jabali", "DenArena", "DenCaliza", "DenGranito", 
+                      "DenPizarra", "DenHidro", "DenEmbalse"
+)
+
+# bind both tables
+
+predictors_table <- cbind(metadata_predictors, predictors_names)
+
+predictors_table <-predictors_table %>%
+  mutate(
+    factores = ifelse(
+      tipologia %in% c("TOPOGRÁFICAS", "ESPACIALES", "CLIMÁTICAS", "ÍNDICES DEL PAISAJE","LITOLOGÍA", "HIDROLOGÍA"), 
+      "Factores Ambientales Abióticos", 
+      ifelse(
+        tipologia %in% c("ACTIVIDAD HUMANA"), "Factores Antrópicos",
+        ifelse(
+          tipologia %in% c("USOS DEL SUELO", "VEGETACIÓN", "GANADO Y CAZA"), "Factores Ambientales Bióticos", ""
+          )
+        )
+      )
+    )
+
+readr::write_csv(predictors_table, file = "01_DATA/OUTPUT/metadata_predictors.csv")
+
+skim(xy)
+
+
+# convert climatic variables v/10
+
+reduce_scaling <- function(x, na.rm = FALSE) (x/10)
+
+
+predictors_to_scale <- predictors_table[predictors_table$tipologia=="CLIMÁTICAS","predictors_names"]
+
+predictors_to_scale <- predictors_to_scale[! predictors_to_scale %in% c('RadSol', 'P_DIAS', "FROSTDAY", "RAINDAY1", "RAINDAY7")]
+
+xy <- xy %>% mutate_at(predictors_to_scale, .funs = reduce_scaling)
+
+##################################################
+## Section: FUNCTIONS ----
+##################################################
+
+
+filter_predictors_by_type_analysis <- function(type_analisys="A_Paisaje", name_of_columns=c("tipologia","predictors_names")) {
+  
+  predictors_table[!is.na(predictors_table[type_analisys]),c(name_of_columns)] 
+}
+
+
+select_variables_by_type__class <- function(type_class="TOPOGRÁFICAS") {
+  xy %>% dplyr::select(a_paisaje[a_paisaje$tipologia==type_class,]$predictors_names, "occ")
+}
+
+
 
 
 plot_density <- function(dataset, predictor_variable, presence_variable) {
@@ -54,8 +160,9 @@ plot_density <- function(dataset, predictor_variable, presence_variable) {
   ggplot(dataset, aes(x = .data[[predictor_variable]])) +
     geom_density(alpha = .2, fill = "#FF6666") +
     geom_point(aes(col=as.factor(.data[[presence_variable]]), y=0)) + 
-    labs(title="Density plot", x=predictor_variable, color='Presence') +
-    facet_grid(.data[[presence_variable]]~.)
+    labs(title="", x=predictor_variable, color='Presence') +
+    facet_grid(.data[[presence_variable]]~.) + 
+    theme_light()
   
 }
 
@@ -85,7 +192,7 @@ plot_all_density <- function(dataset) {
 
 fdr_var_selection <- function(dataset) {
   
-  FDR(dataset, sp.cols = dim(dataset)[2], var.cols = 1:dim(dataset)[2]-1)
+  FDR(dataset, sp.cols = dim(dataset)[2], var.cols = 1:(dim(dataset)[2]-1))
 }
 
 
@@ -113,57 +220,24 @@ get_model_variables <- function(dataset, init, end) {
   paste(names(dataset)[init:end], collapse = " + ")
 }
 
-
 ##################################################
 ## Section: PREDICTOR VARIABLES SELECTION 1
 ##################################################
 
-head(xy)
 
-summary(xy)
+##################################################
+## Section: A-Paisaje
+##################################################
 
-colnames(xy)[dim(xy)[2]] <- "occ"
+a_paisaje <- filter_predictors_by_type_analysis()
+
+write_csv(a_paisaje, file = "01_DATA/OUTPUT/pasiaje_predictors.csv")
+
 
 ## TOPOGRÁFICAS
 ##################################################
 
-## ALL
-
-topo <- c("ALT_MAX", "ALT_MIN", "ALT_MED", "ALT_RANGE", "Tri_mean", "Slope_mean", 
-          "Ori_W", "Ori_S",  "E", "N", "NE", "NW", 
-          "S", "SE", "SW", "W")
-
-
-xy.topo <- xy %>% dplyr::select(all_of(topo), "occ")
-
-# Density plot
-
-plot_all_density(xy.topo)
-
-# Corplot
-
-xy.topo.cor <- cor(xy.topo %>% dplyr::select(-"occ"))
-
-corrplot(xy.topo.cor)
-
-ggcorr(xy.topo.cor,
-       method = c("pairwise", "spearman"),
-       nbreaks = 6,
-       hjust = 0.8,
-       label = TRUE,
-       label_size = 3,
-       color = "grey50")
-
-
-# fdr 
-
-xy.topo.fdr <- fdr_var_selection(xy.topo)
-
-
-## PAISAJE
-
-topo_paisaje <- c("ALT_MAX", "ALT_MIN", "ALT_MED", "ALT_RANGE", "Tri_mean", "Slope_mean")
-xy.topo_paisaje <- xy %>% dplyr::select(all_of(topo_paisaje), "occ")
+xy.topo_paisaje <- select_variables_by_type__class()
 
 # Density plot
 
@@ -175,7 +249,7 @@ xy.topo_paisaje.cor <- cor(xy.topo_paisaje %>% dplyr::select(-"occ"))
 
 corrplot(xy.topo_paisaje.cor)
 
-ggcorr(xy.topo.cor,
+ggcorr(xy.topo_paisaje.cor,
        method = c("pairwise", "spearman"),
        nbreaks = 6,
        hjust = 0.8,
@@ -186,24 +260,20 @@ ggcorr(xy.topo.cor,
 
 # fdr 
 
-xy.topo_paisaje.fdr <- fdr_var_selection(xy.topo_paisaje.cor)
-
-
+xy.topo_paisaje.fdr <- fdr_var_selection(xy.topo_paisaje)
 
 ## ESPACIALES
 ##################################################
 
-espaciales <- c("La", "Lo", "La2", "Lo2", "LaLoVaria")
-
-xy.espaciales <- xy %>% dplyr::select(all_of(espaciales), "occ")
+xy.espaciales_paisaje <- select_variables_by_type__class(type_class = "ESPACIALES")
 
 # Density plot
 
-plot_all_density(xy.espaciales)
+plot_all_density(xy.espaciales_paisaje)
 
 # Corplot
 
-xy.espaciales.cor <- cor(xy.espaciales %>% dplyr::select(-"occ"))
+xy.espaciales.cor <- cor(xy.espaciales_paisaje %>% dplyr::select(-"occ"))
 
 corrplot(xy.espaciales.cor)
 
@@ -216,31 +286,22 @@ ggcorr(xy.espaciales.cor,
        color = "grey50")
 
 
-# fdr 
+# fdr
 
-xy.espaciales.fdr <- fdr_var_selection(xy.espaciales)
-
+xy.espaciales_paisaje.fdr <- fdr_var_selection(xy.espaciales_paisaje)
 
 ## CLIMÁTICAS
 ##################################################
 
-climaticas <- c("Tmed", "Rmtd", "Isot", "Test", "Tmax7", "Tmax1",  
-                "Tran", "Ptot", "Pvar", "P_prim", "Taut", "TSpr", "Tsum", "Twin", "Pwin", "Pene",
-                "Pjul", "Paut", "PSpr", "Psum", "RadSol", "P_DIAS", 
-                "TABSMAX1", "TABSMAX7", "TABSMIN1", "TABSMIN7", 
-                "FROSTDAY", "RAINDAY1", "RAINDAY7", "RAINMAX1", "RAINMAX7")
-
-
-xy.climaticas <- xy %>% dplyr::select(all_of(climaticas), "occ")
-
+xy.climaticas_paisaje <- select_variables_by_type__class(type_class = "CLIMÁTICAS")
 
 # Density plot
 
-plot_all_density(xy.climaticas)
+plot_all_density(xy.climaticas_paisaje)
 
 # Corplot
 
-xy.climaticas.cor <- cor(xy.climaticas %>% dplyr::select(-"occ"))
+xy.climaticas.cor <- cor(xy.climaticas_paisaje %>% dplyr::select(-"occ"))
 
 corrplot(xy.climaticas.cor)
 
@@ -256,26 +317,22 @@ ggcorr(xy.climaticas.cor,
 
 # fdr 
 
-xy.climaticas.fdr <- fdr_var_selection(xy.climaticas)
+xy.climaticas.fdr <- fdr_var_selection(xy.climaticas_paisaje)
 
 
 
 ## ACTIVIDAD HUMANA
 ##################################################
 
-act_humana <- c( "DenPobla", "DistPobla", "NumPoblaD", "DistCarre", 
-             "LongCarrD", "DistCamin", "LongCaminD", "DistElect", "LongElectD")
-
-xy.act_humana <- xy %>% dplyr::select(all_of(act_humana), "occ")
-
+xy.humana_paisaje <- select_variables_by_type__class(type_class = "ACTIVIDAD HUMANA")
 
 # Density plot
 
-plot_all_density(xy.act_humana)
+plot_all_density(xy.humana_paisaje)
 
 # Corplot
 
-xy.act_humana.cor <- cor(xy.act_humana %>% dplyr::select(-"occ"))
+xy.act_humana.cor <- cor(xy.humana_paisaje %>% dplyr::select(-"occ"))
 
 corrplot(xy.act_humana.cor)
 
@@ -291,7 +348,7 @@ ggcorr(xy.act_humana.cor,
 
 # fdr 
 
-xy.act_humana.fdr <- fdr_var_selection(xy.act_humana)
+xy.act_humana.fdr <- fdr_var_selection(xy.humana_paisaje)
 
 
 
@@ -299,19 +356,16 @@ xy.act_humana.fdr <- fdr_var_selection(xy.act_humana)
 ##################################################
 
 
-usos_suelo <- c("Arroz", "Cul_sec", "Cul_len", "Prad", "Cul_het", "Deh", "Bosq", 
-                "Mat", "Agu_cont", "Pas_nat", "Reg", "Sup_arti", "SinVeg")
+xy.usos_paisaje <- select_variables_by_type__class(type_class = "USOS DEL SUELO")
 
-
-xy.usos_suelo <- xy %>% dplyr::select(all_of(usos_suelo), "occ")
 
 # Density plot
 
-plot_all_density(xy.usos_suelo)
+plot_all_density(xy.usos_paisaje)
 
 # Corplot
 
-xy.usos_suelo.cor <- cor(xy.usos_suelo %>% dplyr::select(-"occ"))
+xy.usos_suelo.cor <- cor(xy.usos_paisaje %>% dplyr::select(-"occ"))
 
 corrplot(xy.usos_suelo.cor)
 
@@ -326,26 +380,23 @@ ggcorr(xy.usos_suelo.cor,
 
 # fdr 
 
-xy.usos_suelo.fdr <- fdr_var_selection(xy.usos_suelo)
+xy.usos_suelo.fdr <- fdr_var_selection(xy.usos_paisaje)
 
 
 ## ÍNDICES DEL PAISAJE
 ##################################################
 
-paisaje <- c("NP", "PD", "LPI", "LSI", 
-             "AREA_MN", "FRAC_AM", "CONTAG", "SHDI", "SHEI")
+xy.indices_paisaje <- select_variables_by_type__class(type_class = "ÍNDICES DEL PAISAJE")
 
-
-xy.paisaje <- xy %>% dplyr::select(all_of(paisaje), "occ")
 
 # Density plot
 
-plot_all_density(xy.paisaje)
+plot_all_density(xy.indices_paisaje)
 
 
 # Corplot
 
-xy.paisaje.cor <- cor(xy.paisaje %>% dplyr::select(-"occ"))
+xy.paisaje.cor <- cor(xy.indices_paisaje %>% dplyr::select(-"occ"))
 
 corrplot(xy.paisaje.cor)
 
@@ -360,30 +411,28 @@ ggcorr(xy.paisaje.cor,
 
 # fdr
 
-xy.paisaje.fdr <- fdr_var_selection(xy.paisaje)
+xy.paisaje.fdr <- fdr_var_selection(xy.indices_paisaje)
 
 
 
 ## VEGETACIÓN
 ##################################################
 
-vegetacion <- c("QFAGPY", "QUESUR", "QUEILE", "CASSAT", "EUCSPP", "PINO", "AltVeg")
 
-xy.vegetacion <- xy %>% dplyr::select(all_of(vegetacion), "occ")
-
+xy.vegetacion_paisaje <- select_variables_by_type__class(type_class = "VEGETACIÓN")
 
 # Density plot
 
-plot_all_density(xy.vegetacion)
+plot_all_density(xy.vegetacion_paisaje)
 
 
 # Corplot
 
-xy.vegetacion.cor <- cor(xy.vegetacion %>% dplyr::select(-"occ"))
+xy.vegetacion.cor <- cor(xy.vegetacion_paisaje %>% dplyr::select(-"occ"))
 
 corrplot(xy.vegetacion.cor)
 
-ggcorr(xy.vegetacion.cor,
+ggcorr(xy.vegetacion_paisaje,
        method = c("pairwise", "spearman"),
        nbreaks = 6,
        hjust = 0.8,
@@ -394,27 +443,23 @@ ggcorr(xy.vegetacion.cor,
 
 # fdr
 
-xy.vegetacion.fdr <- fdr_var_selection(xy.vegetacion)
+xy.vegetacion.fdr <- fdr_var_selection(xy.vegetacion_paisaje)
 
 
 
 ## GANADO Y CAZA
 ##################################################
 
-ganado_caza <- c("DenCap18", "DenOvi19", "DenPor19", "DenVac19", "CazaMa", 
-                 "CazaMe", "Conejo", "Perdiz", "Ciervo", "Jabali")
-
-xy.ganado_caza <- xy %>% dplyr::select(all_of(ganado_caza), "occ")
-
+xy.ganado_caza_paisaje <- select_variables_by_type__class(type_class = "GANADO Y CAZA")
 
 # Density plot
 
-plot_all_density(xy.ganado_caza)
+plot_all_density(xy.ganado_caza_paisaje)
 
 
 # Corplot
 
-xy.ganado_caza.cor <- cor(xy.ganado_caza %>% dplyr::select(-"occ"))
+xy.ganado_caza.cor <- cor(xy.ganado_caza_paisaje %>% dplyr::select(-"occ"))
 
 corrplot(xy.ganado_caza.cor)
 
@@ -429,77 +474,18 @@ ggcorr(xy.ganado_caza.cor,
 
 # fdr
 
-xy.ganado_caza.fdr <- fdr_var_selection(xy.ganado_caza)
+xy.ganado_caza.fdr <- fdr_var_selection(xy.ganado_caza_paisaje)
 
 
 ## LITOLOGÍA
 ##################################################
 
-
-litologia <- c( "DenArena", "DenCaliza", "DenGranito", 
-                "DenPizarra")
-
-
-
-xy.litologia <- xy %>% dplyr::select(all_of(litologia), "occ")
-
-
-# Density plot
-
-plot_all_density(xy.litologia)
-
-
-# Corplot
-
-xy.litologia.cor <- cor(xy.litologia %>% dplyr::select(-"occ"))
-
-corrplot(xy.litologia.cor)
-
-ggcorr(xy.litologia.cor,
-       method = c("pairwise", "spearman"),
-       nbreaks = 6,
-       hjust = 0.8,
-       label = TRUE,
-       label_size = 3,
-       color = "grey50")
-
-
-# fdr
-
-xy.litologia.fdr <- fdr_var_selection(xy.litologia)
-
-
+# No hay en paisaje
 
 ## HIDROLOGÍA
 ##################################################
 
-hidrologia <- c( "DenHidro", "DenEmbalse")
-
-xy.hidrologia <- xy %>% dplyr::select(all_of(hidrologia), "occ")
-
-
-# Density plot
-
-plot_all_density(xy.hidrologia)
-
-
-# Corplot
-
-xy.hidrologia.cor <- cor(xy.hidrologia %>% dplyr::select(-"occ"))
-
-corrplot(xy.hidrologia.cor)
-
-ggcorr(xy.hidrologia.cor,
-       method = c("pairwise", "spearman"),
-       nbreaks = 6,
-       hjust = 0.8,
-       label = TRUE,
-       label_size = 3,
-       color = "grey50")
-
-# fdr
-
-xy.hidrologia.fdr <- fdr_var_selection(xy.hidrologia)
+# No hay en paisaje
 
 
 ##################################################
@@ -547,264 +533,58 @@ ggcorr(cor(paisaje_variables),
 ## Section: EXPLORE NAIVE MODELS
 ##################################################
 
-
-## Section: 
+## Section: Multicolinearity
 ##################################################
 
+mult1 <- multicol(subset(xy_paisaje, select = 1:(dim(xy_paisaje)[2] -1)))
 
-mult1 <- multicol(subset(xy_paisaje, select = 1:dim(xy_paisaje)[2] -1))  # especificar sÃ³lo las columnas con variables!
+subset(mult1, VIF < 5)  # muestra cuales tienen VIF elevado
 
-subset(mult1, VIF < 5)  # muestra cuÃ¡les tienen VIF elevado
-
-xy_paisaje <- xy %>% dplyr::select(rownames(subset(mult1, VIF < 5)))  # muestra cuÃ¡les tienen VIF elevado
+xy_paisaje <- xy %>% dplyr::select(rownames(subset(mult1, VIF < 5)))
 xy_paisaje <- data.frame(xy_paisaje, occ= xy$occ)
 
-logit <- step(glm(occ~., data = xy_paisaje, family = 'binomial'), direction = "forward")
+xy_paisaje.scale <- as.data.frame(scale(xy_paisaje))
+xy_paisaje.scale$occ <- xy_paisaje$occ
 
-min.model = glm(occ ~ 1, data = xy_paisaje, family='binomial')
+null.model = glm(occ ~ 1, data = xy_paisaje, family=binomial)
 
-predictor_variables <- get_model_variables(xy_paisaje, 1, dim(xy_paisaje)[2]-1)
+paste(colnames(xy_paisaje), collapse = " + ")
+
+model <- step(null.model, direction='forward',
+     keep =  function(model, aic) list(model = model, aic = aic),
+     scope = (~Conejo + Tmax7 + RAINDAY1 + QUEILE + RAINDAY7 + Deh + LongCarrD +
+                QFAGPY + SinVeg + DistPobla + Reg + Cul_len + NumPoblaD + CASSAT + 
+                DenCap18 + TABSMAX1 + Cul_het + LongElectD + QUESUR + EUCSPP))
+
+# scaled
+
+null.model = glm(occ ~ 1, data = xy_paisaje.scale, family='binomial')
+
+paste(colnames(xy_paisaje.scale), collapse = " + ")
 
 
-#statistical model
+model.scaled <- step(null.model, direction='forward',
+              keep =  function(model, aic) list(model = model, aic = aic),
+              scope = (~Conejo + Tmax7 + RAINDAY1 + QUEILE + RAINDAY7 + Deh + LongCarrD + 
+                         QFAGPY + SinVeg + DistPobla + Reg + Cul_len + NumPoblaD + CASSAT + 
+                         DenCap18 + TABSMAX1 + Cul_het + LongElectD + QUESUR + EUCSPP))
 
-fwd.model = step(min.model, direction='forward',
-                 keep = function(model, aic) list(model = model, aic = aic),
-                 scope=(~Conejo + ALT_MIN + QUEILE + RAINDAY1 + Deh + RAINDAY7 + LongCarrD + QFAGPY + SinVeg + Reg + DistPobla + NumPoblaD + Cul_len + CASSAT + DenCap18 + TABSMAX1 + Cul_het + LongElectD + QUESUR + EUCSPP + Arroz))
 
-# ecological model: select make sense variables
 
-fwd.model = step(min.model, direction='forward',
-                 keep = function(model, aic) list(model = model, aic = aic),
-                 scope=(~Conejo + ALT_MIN + QUEILE +RAINDAY1 + Deh  + RAINDAY7 + 
-                          LongCarrD + QFAGPY + SinVeg + Reg +   DistPobla + LongElectD + DenCap18 + QUESUR + EUCSPP))
 
-summary(fwd.model)
 
-# summary(fwd.model$keep[,2]$model)
-
-## Section: Favourability
 ##################################################
-
-Fav(fwd.model)
-
-xy.fav <- data.frame(id=xy$CUADRICULA, occ=xy$occ, f=Fav(fwd.model))
-
-xy.fav.utm10 <- left_join(utm10, xy.fav,join_by(CUADRICULA  == id))
-
-plot(xy.fav.utm10)
-
-
-xy.fav.utm10$category <- cut(xy.fav.utm10$f, breaks=c(-Inf, 0.2, 0.8, Inf), labels=c("low","middle","high"))
-
-## Section: Plot
-##################################################
-
-ggplot(data=xy.fav.utm10) +
-  geom_sf(aes(fill=f)) +
-  scale_fill_stepsn(colours=  c("#FF0000", "yellow", "green"),breaks= c(0.2, 0.8, 1))
-
-ggplot(data=xy.fav.utm10) +
-  geom_sf(aes(fill=category)) +
-  scale_fill_manual(values = c("low" = "red", "middle" = "yellow", "high" = "green")) +
-  geom_sf(data=st_centroid(xy.fav.utm10) %>% dplyr::filter(occ==1))
-
-
-
-table_mat_ <- table(xy.fav.utm10$occ, xy.fav.utm10$f > 0.2)
-table_mat_
-
-table_mat_ <- table(xy.fav.utm10$occ, xy.fav.utm10$f > 0.5)
-table_mat_
-
-## Section: Train test 
+## Section: B-Hábitat ----
 ##################################################
 
 
-set.seed(1234)
-create_train_test <- function(data, size = 0.8, train = TRUE) {
-  n_row = nrow(data)
-  total_row = size * n_row
-  train_sample <- 1: total_row
-  if (train == TRUE) {
-    return (data[train_sample, ])
-  } else {
-    return (data[-train_sample, ])
-  }
-}
-data_train <- create_train_test(xy_paisaje, 0.8, train = TRUE)
-data_test <- create_train_test(xy_paisaje, 0.8, train = FALSE)
-dim(data_train)
-dim(data_test)
-
-formula <- occ~.
-logit <- step(glm(formula, data = data_train, family = 'binomial'), direction = "forward")
-summary(logit)
-
-predict_ <- predict(fwd.model, data_test, type = 'response')
-
-fav_test <-  Fav(pred = predict_, obs=data_test$occ) # transform to fav
-
-# confusion matrix
-table_mat <- table(data_test$occ, fav_test > 0.5)
-table_mat
-
-accuracy_Test <- sum(diag(table_mat)) / sum(table_mat)
-accuracy_Test
+filter_predictors_by_type_analysis("B_Habitat")
 
 
-precision <- function(matrix) {
-  # True positive
-  tp <- matrix[2, 2]
-  # false positive
-  fp <- matrix[1, 2]
-  return (tp / (tp + fp))
-}
-
-recall <- function(matrix) {
-  # true positive
-  tp <- matrix[2, 2]# false positive
-  fn <- matrix[2, 1]
-  return (tp / (tp + fn))
-}
-
-prec <- precision(table_mat)
-prec
-rec <- recall(table_mat)
-rec
-
-f1 <- 2 * ((prec * rec) / (prec + rec))
-f1
-
-library(ROCR)
-ROCRpred <- prediction(predict, data_test$sp)
-ROCRperf <- performance(ROCRpred, 'tpr', 'fpr')
-plot(ROCRperf, colorize = TRUE, text.adj = c(-0.2, 1.7))
-
-
-
-## check partial responses
-
-# Load the mecofun package
-library(mecofun)
-
-# Names of our variables:
-pred <- colnames(bio.sp.selected)[1:length(bio.sp.selected)-1]
-
-# We want three panels next to each other:
-par(mfrow=c(1,3)) 
-
-# Plot the partial responses
-partial_response(logit, predictors = bio.sp.selected[,pred])
-
-
-## Section:
+##################################################
+## Section: C-NestSite ----
 ##################################################
 
+filter_predictors_by_type_analysis("C_NestSite")
 
-# remove Lat Long variables
-
-xy.sel <- xy %>% dplyr::select(c("Slope_mean", "Conejo", "CazaMa", "Deh", "Bosq", "Mat", "Agu_cont",
-                              "QUESUR", "QUEILE", "DistPobla", "EUCSPP", "occ"))
-
-data_train <- create_train_test(xy.sel, 0.8, train = TRUE)
-data_test <- create_train_test(xy.sel, 0.8, train = FALSE)
-dim(data_train)
-dim(data_test)
-
-formula <- occ~.
-logit <- glm(formula, data = data_train, family = 'binomial')
-summary(logit)
-
-
-
-predict_ <- predict(logit, data_test, type = 'response')
-# confusion matrix
-table_mat <- table(data_test$occ, predict_ > 0.5)
-table_mat
-
-accuracy_Test <- sum(diag(table_mat)) / sum(table_mat)
-accuracy_Test
-
-
-# LITOLOGÍA
-
-# HIDROLOGÍA
-
-
-ggplot(xy) + 
-  geom_point(aes(CazaMe, Conejo)) # remove CazaMe and keep conejo
-
-ggplot(xy) + 
-  geom_point(aes(CazaMe, Conejo)) # remove CazaMe and keep conejo
-
-
-ggplot(xy) + 
-  geom_point(aes(sqrt(CazaMe), sqrt(Conejo))) 
-
-
-
-ggplot(xy) + 
-  geom_point(aes(Tmax1, Tmax7))
-
-
-ggplot(xy, aes(x = Tmax1, y = Tmax7, col = as.factor(occ))) + 
-  geom_point(alpha = .3) + 
-  coord_equal(ratio = 1)
-
-
-
-ggplot(xy, aes(x = CazaMa, y = CazaMe, col = as.factor(occ))) + 
-  geom_point(alpha = .3) + 
-  coord_equal(ratio = 0.25)
-
-
-
-
-## Section: Compare bioclimate variables
-##################################################
-
-
-## Section: load sp and historical bioclimate vars
-##################################################
-
-utm10 <- st_read('01_DATA/INPUT/shp/CUTM10_AQUADA.shp') %>% select("CUADRICULA")
-
-x <- read_excel(path = here::here('01_DATA/INPUT/CUTM10extVariablesWldClimPresente.xlsx'))
-
-y <- read_excel(path = here::here('01_DATA/INPUT/Presencia_Imperial_CUTM10.xlsx'), sheet = "Presencia")
-
-xy <- right_join(x %>% select("CUADRICULA", starts_with("Bio")), y)
-
-xy <- xy %>% select(-"CUADRICULA") %>% rename("sp"="AQUADA")
-
-
-## Section: plot bioclim future - present
-##################################################
-
-# example
-
-wc_ssp126_2021_2040 <- read.csv2(file =here::here('01_DATA/INPUT/bioclim_future/ext10KM/2021-2040/wc2.1_30s_bioc_ssp126_2021-2040_ext10KM.csv'),
-                                 sep =",") 
-
-colnames(wc_ssp126_2021_2040)  <- c("X", "CUADRICULA", paste0("Bio0", 1:9), paste0("Bio", 10:19))
-
-xy.126_2021_2040 <- data.frame(wc_ssp126_2021_2040 %>% dplyr::select(-c("X", "CUADRICULA")) %>%   mutate(across(1:dim(.)[2], as.numeric)),
-                               sp=xy$sp)
-
-present <- cbind.data.frame(xy, period="present")
-future <- cbind.data.frame(xy.126_2021_2040, period="126_2021_2040")
-all <- rbind.data.frame(present %>% dplyr::select(-"sp"), future %>% dplyr::select(-c("sp")), stringsAsFactors = FALSE)
-
-ggplot(data=all) +
-  geom_boxplot(aes(x=period, y=Bio01, fill=period))
-
-library(reshape2)
-mm = melt(all, id=c('period'))
-
-foo <- mm %>% group_by(period, variable)  %>% summarise(mean=mean(value))
-
-
-ggplot(data=mm) +
-  geom_boxplot(aes(x=variable, y=value, fill=period))
 
