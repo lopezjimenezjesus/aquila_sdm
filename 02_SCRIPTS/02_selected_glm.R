@@ -182,7 +182,7 @@ dput(colnames(model.glm.trimmed$data))
 
 #dput(names(coef(model.glm)))[-1]
 
-predictors_table <- readr::read_csv(file = "01_DATA/OUTPUT/metadata_predictors.csv")
+predictors_table <- readr::read_delim(file = "01_DATA/OUTPUT/metadata_predictors.csv")
 
 # get groups from predictor_table
 var_groups <- data.frame(vars=names(coef(model.glm.trimmed))[-1],

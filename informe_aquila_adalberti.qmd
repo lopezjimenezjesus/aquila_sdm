@@ -1,5 +1,5 @@
 ---
-title: "Modelos de favorabilidad - Aquila_dalberti"
+title: "Modelos de favorabilidad Aquila_dalberti"
 author: "Jesús Jiménez López"
 format:
   docx:
@@ -18,6 +18,7 @@ library(flextable)
 library(here)
 library(stringr)
 library(fuzzySim)
+library(patchwork)
 
 here::i_am("Aquila_adalberti_SDM.Rproj")
 
@@ -41,8 +42,7 @@ paths <- create_folder(folder_name = config$configuration$folder_name) # create 
 
 if(config$configuration$model_trimmed) {
   
-  model.glm <- readRDS(file.path('04_RESULTS/01_models/',
-                                 config$configuration$folder_name, 'glm_model.rds'))
+  model.glm <- readRDS(file.path(paths$model_path, 'glm_model.rds'))
   r2 <- unlist(fav_step_models(model.glm)[[2]])
     
   step_first_value_above <- which(r2>=0.75)[1]
@@ -55,10 +55,9 @@ if(config$configuration$model_trimmed) {
   f <- Fav(model.glm)
   f_o <- Fav(model_optimal)
 
-  model.glm <- readRDS(file.path('04_RESULTS/01_models/',
-                                         config$configuration$folder_name, 'glm_model_trimmed.rds'))
+  model.glm <- readRDS(file.path(paths$model_path, 'glm_model_trimmed.rds'))
 } else {
-  model.glm <- readRDS(file.path('04_RESULTS/01_models/',
+  model.glm <- readRDS(file.path(paths$model_path,
                                  config$configuration$folder_name, 'glm_model.rds'))
   r2 <- unlist(fav_step_models(model.glm)[[2]])
     
@@ -75,8 +74,7 @@ if(config$configuration$model_trimmed) {
 }
 
 
-model.metrics <- readRDS(file.path('04_RESULTS/01_models/', 
-                                   config$configuration$folder_name, 'model_metrics.rds'))
+model.metrics <- readRDS(file.path(paths$model_path, 'model_metrics.rds'))
 
 # tabla variables
 
@@ -238,11 +236,11 @@ colformat_double(
 
 Los resultados han mostrado varios núcleos bien delimitados de alta favorabilidad, especialmente al norte de Badajoz, incluyendo la provincia de Alburquerque , la Sierra de San Pedro y zonas cercanas al embalse de Alcántara. En el cuadrante noroccidental destaca las sierras de Monfragüe y hacia el sur ciertos núcleos aislados cercanos al embalse de Cijara . También se obtienen zonas de alta favorabilidad en las estribaciones de Sierra Morena y en una franja que se extiende a lo largo de cota superior de la comarca de la Campiña, Tierra de Barros y Alange (@fig-fav). Considerando la favorabilidad clasificada en tres categorías (@fig-fav), se obtienen un total de `r fav_alta` cuadrículas con zonas de alta favorabilidad para la especie (\> 0,8), `r fav_media` cuadrículas de favorabilidad intermedia (0,2-0,8) y `r fav_baja` cuadrículas de baja favorabilidad (\< 0,2).
 
-![Resultados de favorabilidad para el águila imperial (A) 10 clases con pasos regulares de 0,1; (B) zonas desfavorables en color rojo (\< 0,2), zonas intermedias en color amarillo (0,2 -- 0,8) y zonas favorables en color verde (\> 0,8).](%60r%20file.path(paths$figure_path,%20%22fav_historical_model_c3_10.png%22)%60){#fig-fav}
+![Resultados de favorabilidad para el águila imperial (A) 10 clases con pasos regulares de 0,1; (B) zonas desfavorables en color rojo (\< 0,2), zonas intermedias en color amarillo (0,2 -- 0,8) y zonas favorables en color verde (\> 0,8).](%60r%20file.path(paths$figure_path,%22fav_historical_model_c3_10.png%22)%60){#fig-fav}
 
 En el Paso `r step_first_value_above` de la regresión logística,el ajuste del modelo puede considerarse óptimo (R2 = `r round(r2_first_value_above,2)` ; @fig-fav_inter) de la favorabilidad total del modelo ha sido explicada por las `r length(model_optimal_c)` primeras variables que entran en el modelo (`r paste(names(model_optimal_c), collapse = ", ")`), todas ellas con valores positivos. En este paso, se han obtenido `r sum(Fav(model_optimal) > 0.8)` cuadrículas con favorabilidad alta (\> 0,8), que suponen el `r round((sum(Fav(model_optimal) > 0.8) / sum(Fav(model.glm) > 0.8))*100,3)` de las obtenidas en el total del modelo en el último paso; y `r sum(Fav(model_optimal) < 0.2)` cuadrículas con valores desfavorables (\< 0,2), que conforman el `r round(sum(Fav(model_optimal) < 0.2) / sum(Fav(model.glm) < 0.2),3)*100` % del total de las mismas en el último paso.
 
-![Resultados de las correlaciones de Pearson de la favorabilidad de cada paso de la regresión con el resultado final de favorabilidad del águila imperial.](%60r%20file.path(paths$figure_path,%20%22intermediate_models_fav.png%22)%60){#fig-fav_inter}
+![Resultados de las correlaciones de Pearson de la favorabilidad de cada paso de la regresión con el resultado final de favorabilidad del águila imperial.](%60r%20file.path(paths$figure_path,%22intermediate_models_fav.png%22)%60){#fig-fav_inter}
 
 ```{r}
 predictors_table <- readr::read_csv(file = "01_DATA/OUTPUT/metadata_predictors.csv")
@@ -281,7 +279,7 @@ flextable(data= BAAn) %>%
 
 ```
 
-![Partición de la varianza entre factores"](%60r%20file.path(paths$figure_path,%20%22variance_plot_color.png%22)%60){#fig-variance}
+![Partición de la varianza entre factores"](%60r%20file.path(paths$figure_path,%22variance_plot_color.png%22)%60){#fig-variance}
 
 ## Selección del lugar de nidificación
 
@@ -308,11 +306,28 @@ BAAn <- readRDS(file =file.path( paths$model_path, "BAAn.rds"))
 model_to_explore <- read_rds(file = file.path( paths$model_path, "future_model_selected.rds"))
 
 n_coef <- length(coef(model_to_explore)[-1])
+
+historical_cat_3 <- readRDS(file =file.path( paths$model_path, "historical_cat_3.rds"))
+
+historical_cat_2 <- readRDS(file =file.path( paths$model_path, "historical_cat_2.rds"))
+
+future_blr <- readRDS(file =file.path( paths$model_path, "future_blr.rds"))
+
+future_n_steps <-  readRDS(file =file.path( paths$model_path, "future_n_steps_model.rds"))
+
+
 ```
 
-Para modelar la favorabilidad del Aguila imperial en Extremadura se realizó una preselección de las variables predictivas con mayor a partir del análisis de la correlación entre variables y la técnica FDR.
+Para modelar la favorabilidad del Aguila imperial en Extremadura se realizó una preselección de las variables predictivas a partir del análisis de la correlación entre variables y la técnica FDR, descartándose x de las y variables incluidas inicialmente. Se ha configurado finalmente un modelo en `r future_n_steps` pasos con x variables explicativas estadísticamente significativas (Tabla 31). Las dos variables seleccionadas por el modelo (isotermalidad y la precipitación del mes más árido) han presentado signo negativo. Además, no se han encontrado en el modelo diferencias significativas (HyL \> 0,05) entre lo observado y lo esperado en la prueba de Hosmer y Lemeshow (HyL = `r future_blr$chisq_stat`).
 
-Se ha configurado finalmente un modelo en x pasos con x variables explicativas estadísticamente significativas (Tabla 31). Las dos variables seleccionadas por el modelo (isotermalidad y la precipitación del mes más árido) han presentado signo negativo. Además, no se han encontrado en el modelo diferencias significativas (HyL \> 0,05) entre lo observado y lo esperado en la prueba de Hosmer y Lemeshow (HyL = 0,096).
+```{r}
+#| label: fig-historical_future
+#| fig-cap: "Resultados de favorabilidad climática histórica para la especie. A) dos clases: valores de favorabilidad >0,5 (verde) y <0,5 (rojo), B) tres clases: baja favorabilidad <0,2 (rojo), favorabilidad intermedia 0,2-0,8 (amarillo) y alta favorabilidad >0,8 (verde)."
+#| fig-cap-location: bottom
+
+historical_cat_2 + historical_cat_3
+
+```
 
 ```{r}
 #| label: tbl-coef_future
@@ -336,7 +351,7 @@ Se han calculado, tanto para las variables abióticas como para las climáticas 
 
 Los cálculos y tratamientos estadísticos para el cálculo de la favorabilidad se han realizado mediante la librería fuzzySim en R.
 
-![Partición de la varianza entre factores\"](%60r%20file.path(paths$figure_path,%20%22future_prediction_2.png%22)%60){fig-alt="Future prediction" fig-align="center"} {#fig-variance}
+![Partición de la varianza entre factores\"](%60r%20file.path(paths$figure_path,%22future_prediction_2.png%22)%60){fig-alt="Future prediction" fig-align="center"}{#fig-variance}
 
 El cálculo de favorabilidad climática del águila imperial se ha realizado mediante la utilización de las presencias/ausencias de la especie como variable dependiente, y los datos derivados de las variables climáticas históricas, como variables independientes. Estos resultados se han proyectado para cada uno de los 16 escenarios de cambio climático definidos anteriormente, para conocer la variación de la favorabilidad climática de la especie. Para ello, inicialmente con los datos climáticos históricos se ha realizado un análisis para crear un subconjunto de variables predictivas significativas mediante un análisis de regresión logística binaria de la presencia/ausencia de la especie respecto a cada una de las variables disponibles, obteniendo la significancia (α) individual de cada variable dentro del modelo (Muñoz y Real, 2006). Posteriormente, para evitar la multicolinealidad entre estas variables, se ha aplicado un coeficiente de correlación de Spearman entre ellas. Para cada pareja de variables con valor de correlación superior a 0,8, se ha seleccionado la variable con mayor nivel de significancia individual (α) (Chamorro *et al.*, 2020).
 

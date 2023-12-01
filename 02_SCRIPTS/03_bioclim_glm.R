@@ -99,8 +99,6 @@ names(ext.raster)  <- c(paste0("Bio0", 1:9), paste0("Bio", 10:19))
 ## Section: load future bioclimate variables
 ##################################################
 
-
-
 path_to_tif <- "01_DATA/INPUT/bioclim_future/ext10KM/"
 
 tiff_files_2021_2040 <- load_list_of_tif(path_to_tif, "2021-2040")
@@ -167,7 +165,7 @@ extract_fav_from_grid <- function(favourability_raster, umt_grid,  plot_points=F
     geom_sf(aes(fill=category)) +
     scale_fill_manual(values = c("low" = "red", "middle" = "yellow", "high" = "green")) + {
       if(plot_points) geom_sf(data=st_centroid(aa.sf) %>% dplyr::filter(sp==1), size=0.5)} +
-    theme_void()
+    theme_void() + theme(legend.position="none")
 }
 
 
@@ -183,7 +181,7 @@ extract_fav_from_grid_2 <- function(favourability_raster, umt_grid, plot_points=
     geom_sf(aes(fill=category)) +
     scale_fill_manual(values = c("low" = "red", "high" = "green")) + {
       if(plot_points) geom_sf(data=st_centroid(aa.sf) %>% dplyr::filter(sp==1), size=0.5)} +
-    theme_void()
+    theme_void() + theme(legend.position="none")
   
 }
 
@@ -259,25 +257,32 @@ xy.scaled.selection <- xy.scaled.selection[,  -index] # remove correlated variab
 
 # xy.scaled.selection <- cbind(xy.scaled.selection, sp=xy$sp)
 
+
+variables_to_model <- paste(colnames(xy.scaled.selection)[-length(colnames(xy.scaled.selection))], collapse = " + ")
+
+
 null.model <- glm(formula = sp ~ 1, family = binomial, data=xy.scaled.selection)
 
 
 fmod_aa_biohist <- step(null.model, direction = "forward", 
                         keep = function(model, aic) list(model = model, aic = aic),
-                        scope = (~Bio03 + Bio04 + Bio05 + Bio06 + Bio14 + Bio16))
+                        scope =paste0("~", variables_to_model))
 
 
 summary(fmod_aa_biohist)
 
-fmod_aa_biohist.trimmed <- modelTrim(fmod_aa_biohist)
+model_n_steps <- length(fmod_aa_biohist$keep) / 2
 
+saveRDS(object = model_n_steps, file = file.path(paths$model_path, "future_n_steps_model.rds"))
+
+fmod_aa_biohist.trimmed <- modelTrim(fmod_aa_biohist)
 
 ## Plot both models
 ##################################################
 
-plot(historical_prediction(ext.raster, bmod_aa_biohist))
-plot(historical_prediction(ext.raster, fmod_aa_biohist))
-plot(historical_prediction(ext.raster, fmod_aa_biohist.trimmed))
+# plot(historical_prediction(ext.raster, bmod_aa_biohist))
+# plot(historical_prediction(ext.raster, fmod_aa_biohist))
+# plot(historical_prediction(ext.raster, fmod_aa_biohist.trimmed))
 
 ##################################################
 ## Section: HISTORICAL - FUTURE FAVOURABILITY  ----
@@ -289,9 +294,7 @@ plot(historical_prediction(ext.raster, fmod_aa_biohist.trimmed))
 
 model_to_explore <- fmod_aa_biohist.trimmed
 
-
 write_rds(model_to_explore, file = file.path(paths$model_path, "future_model_selected.rds"))
-
 
 ## Historical ----
 ##################################################
@@ -301,11 +304,14 @@ epsg_code <- paste0("epsg:",st_crs(utm10)$epsg)
 plot(historical_favourability(historical_prediction(ext.raster, model_to_explore), 
                               xy.scaled$sp, crs=epsg_code))
 
-extract_fav_from_grid(historical_favourability(historical_prediction(ext.raster, model_to_explore), 
+historical_cat_3 <- extract_fav_from_grid(historical_favourability(historical_prediction(ext.raster, model_to_explore), 
                                                xy.scaled$sp, crs=epsg_code),utm10)
 
-extract_fav_from_grid_2(historical_favourability(historical_prediction(ext.raster, model_to_explore), 
+historical_cat_2 <- extract_fav_from_grid_2(historical_favourability(historical_prediction(ext.raster, model_to_explore), 
                                                  xy.scaled$sp, crs=epsg_code),utm10)
+
+saveRDS(historical_cat_3, file=file.path(paths$model_path, "historical_cat_3.rds"))
+saveRDS(historical_cat_2, file=file.path(paths$model_path, "historical_cat_2.rds"))
 
 ## Future  ----
 ##################################################
@@ -498,7 +504,7 @@ xx <- do.call("grid.arrange", c(x , ncol = 4))
 
 lapply(x, function(p) {
   file_name <-  paste0(p$labels$title, '.png')
-  ggsave(file_name, p  + labs(title = ""), path = '04_RESULTS/02_figures',device = "png")
+  ggsave(file_name, p  + labs(title = ""), path = paths$figure_path,device = "png")
 })
 
 
@@ -624,6 +630,10 @@ blr <- blr_test_hosmer_lemeshow(model_to_explore)
 
 blr
 
+
+saveRDS(object = blr, file = file.path(paths$model_path, "future_blr.rds"))
+
+
 # percent cells 
 
 fav_3_cat <- extract_fav_from_grid(historical_favourability(historical_prediction(ext.raster, model_to_explore), 
@@ -674,10 +684,10 @@ write_rds(tidy_coef, file = file.path(paths$model_path, "tabla_coef_future.rds")
 
 
 
-
-knitr::kable(tidy_coef, "html") %>%
-  kable_styling("striped") %>% 
-  row_spec(0, background = "#F7CAAC") %>%
-  row_spec(seq(1,dim(tidy_coef)[1],2), background = "#FBE4D5")
-
-
+# 
+# knitr::kable(tidy_coef, "html") %>%
+#   kable_styling("striped") %>% 
+#   row_spec(0, background = "#F7CAAC") %>%
+#   row_spec(seq(1,dim(tidy_coef)[1],2), background = "#FBE4D5")
+# 
+# 
