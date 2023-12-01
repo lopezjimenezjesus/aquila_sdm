@@ -237,6 +237,11 @@ bmod_aa_biohist <- step(null.model, direction = "forward",
 
 bmod_aa_biohist.trimmmed <- modelTrim(bmod_aa_biohist)
 
+
+foo <-  glm(formula = sp ~ Bio09 + Bio03 + Bio14 + Bio15 + Bio08 + Bio13 , family = binomial, data=xy.scaled)
+
+
+
 ## Model 2: by Feature selection
 ##################################################
 

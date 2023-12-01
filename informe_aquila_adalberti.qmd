@@ -236,11 +236,21 @@ colformat_double(
 
 Los resultados han mostrado varios núcleos bien delimitados de alta favorabilidad, especialmente al norte de Badajoz, incluyendo la provincia de Alburquerque , la Sierra de San Pedro y zonas cercanas al embalse de Alcántara. En el cuadrante noroccidental destaca las sierras de Monfragüe y hacia el sur ciertos núcleos aislados cercanos al embalse de Cijara . También se obtienen zonas de alta favorabilidad en las estribaciones de Sierra Morena y en una franja que se extiende a lo largo de cota superior de la comarca de la Campiña, Tierra de Barros y Alange (@fig-fav). Considerando la favorabilidad clasificada en tres categorías (@fig-fav), se obtienen un total de `r fav_alta` cuadrículas con zonas de alta favorabilidad para la especie (\> 0,8), `r fav_media` cuadrículas de favorabilidad intermedia (0,2-0,8) y `r fav_baja` cuadrículas de baja favorabilidad (\< 0,2).
 
-![Resultados de favorabilidad para el águila imperial (A) 10 clases con pasos regulares de 0,1; (B) zonas desfavorables en color rojo (\< 0,2), zonas intermedias en color amarillo (0,2 -- 0,8) y zonas favorables en color verde (\> 0,8).](%60r%20file.path(paths$figure_path,%22fav_historical_model_c3_10.png%22)%60){#fig-fav}
+```{r  label = fig-fav, echo = FALSE, fig.cap = "Resultados de las correlaciones de Pearson de la favorabilidad de cada paso de la regresión con el resultado final de favorabilidad del águila imperial", out.width = '100%', fig.align='center'}
+knitr::include_graphics(file.path(paths$figure_path,'fav_historical_model_c3_10.png'))
+
+# ![Resultados de las correlaciones de Pearson de la favorabilidad de cada paso de la regresión con el resultado final de favorabilidad del águila imperial.](%60r%20file.path(paths$figure_path,%22intermediate_models_fav.png%22)%60){#fig-fav_inter}
+```
 
 En el Paso `r step_first_value_above` de la regresión logística,el ajuste del modelo puede considerarse óptimo (R2 = `r round(r2_first_value_above,2)` ; @fig-fav_inter) de la favorabilidad total del modelo ha sido explicada por las `r length(model_optimal_c)` primeras variables que entran en el modelo (`r paste(names(model_optimal_c), collapse = ", ")`), todas ellas con valores positivos. En este paso, se han obtenido `r sum(Fav(model_optimal) > 0.8)` cuadrículas con favorabilidad alta (\> 0,8), que suponen el `r round((sum(Fav(model_optimal) > 0.8) / sum(Fav(model.glm) > 0.8))*100,3)` de las obtenidas en el total del modelo en el último paso; y `r sum(Fav(model_optimal) < 0.2)` cuadrículas con valores desfavorables (\< 0,2), que conforman el `r round(sum(Fav(model_optimal) < 0.2) / sum(Fav(model.glm) < 0.2),3)*100` % del total de las mismas en el último paso.
 
-![Resultados de las correlaciones de Pearson de la favorabilidad de cada paso de la regresión con el resultado final de favorabilidad del águila imperial.](%60r%20file.path(paths$figure_path,%22intermediate_models_fav.png%22)%60){#fig-fav_inter}
+```{r  label = fig-fav_inter, echo = FALSE, fig.cap = "Resultados de las correlaciones de Pearson de la favorabilidad de cada paso de la regresión con el resultado final de favorabilidad del águila imperial", out.width = '100%', fig.align='center'}
+knitr::include_graphics(file.path(paths$figure_path,'intermediate_models_fav.png'))
+
+# ![Resultados de las correlaciones de Pearson de la favorabilidad de cada paso de la regresión con el resultado final de favorabilidad del águila imperial.](%60r%20file.path(paths$figure_path,%22intermediate_models_fav.png%22)%60){#fig-fav_inter}
+```
+
+
 
 ```{r}
 predictors_table <- readr::read_csv(file = "01_DATA/OUTPUT/metadata_predictors.csv")
@@ -248,9 +258,6 @@ predictors_table <- readr::read_csv(file = "01_DATA/OUTPUT/metadata_predictors.c
 mvf <- readRDS(file =file.path( paths$model_path, 'model_variables_factor.rds'))
 n_var <- length(names(coef(model.glm))[-1])
 #var_groups <- readRDS(file="04_RESULTS/01_models/model_variables_factor.rds")
-
-
-
 n_f <- mvf %>% group_by(factores) %>% count()
 
 ```
@@ -279,13 +286,23 @@ flextable(data= BAAn) %>%
 
 ```
 
-![Partición de la varianza entre factores"](%60r%20file.path(paths$figure_path,%22variance_plot_color.png%22)%60){#fig-variance}
+
+
+```{r  label = fig-variance, echo = FALSE, fig.cap = "Partición de la varianza entre factores", out.width = '90%'}
+knitr::include_graphics(file.path(paths$figure_path,"variance_plot_color.png"))
+
+# ![Partición de la varianza entre factores"](%60r%20file.path(paths$figure_path,%22variance_plot_color.png%22)%60)
+```
+
 
 ## Selección del lugar de nidificación
 
 La selección del lugar de nidificación del águila imperial se ha determinado utilizando buffers de x m de radio alrededor de las localizaciones geográficas de las plataformas de cada una de las parejas. Dicha medida se basa en la utilización de cuadrículas 1 x 1 km UTM en estudios previos de selección del lugar de nidificación en rapaces (López-López *et al.*, 2006; López-López *et al.*, 2007c). El buffer de x m se ha aplicado a la ubicación de aquellas plataformas utilizadas (PS, PP) en el periodo 2017-2019 (Figura 34.A), que suman un total de 110 plataformas.
 
 Los estudios de selección de hábitat requieren la comparación de las áreas de presencia de la especie con una selección de áreas aleatorias (ausencias) repartidas por toda el área de estudio, en proporción 1:2 (Morán-López *et al.,* 2006). Para establecer las localizaciones de ausencia de la especie se han creado 166 puntos aleatorios y su respectiva área buffer de 500 m (Figura 34.B), separados una distancia mínima de 5.000 m entre ellos, evitando la localización de su centroide en los grandes embalses de Extremadura y no pudiendo ser sus áreas coincidentes con ningún área de nidificación existente (Figura 34.B).
+
+
+
 
 ## Escenarios futuros y cambio climático
 
@@ -351,7 +368,13 @@ Se han calculado, tanto para las variables abióticas como para las climáticas 
 
 Los cálculos y tratamientos estadísticos para el cálculo de la favorabilidad se han realizado mediante la librería fuzzySim en R.
 
-![Partición de la varianza entre factores\"](%60r%20file.path(paths$figure_path,%22future_prediction_2.png%22)%60){fig-alt="Future prediction" fig-align="center"}{#fig-variance}
+
+
+```{r  label = fig-future, echo = FALSE, fig.cap = "Partición de la varianza entre factores", out.width = '100%'}
+knitr::include_graphics(file.path(paths$figure_path,"future_prediction_2.png"))
+
+# ![Partición de la varianza entre factores\"](%60r%20file.path(paths$figure_path,%22future_prediction_2.png%22)%60){fig-alt="Future prediction" fig-align="center"}{#fig-variance}
+```
 
 El cálculo de favorabilidad climática del águila imperial se ha realizado mediante la utilización de las presencias/ausencias de la especie como variable dependiente, y los datos derivados de las variables climáticas históricas, como variables independientes. Estos resultados se han proyectado para cada uno de los 16 escenarios de cambio climático definidos anteriormente, para conocer la variación de la favorabilidad climática de la especie. Para ello, inicialmente con los datos climáticos históricos se ha realizado un análisis para crear un subconjunto de variables predictivas significativas mediante un análisis de regresión logística binaria de la presencia/ausencia de la especie respecto a cada una de las variables disponibles, obteniendo la significancia (α) individual de cada variable dentro del modelo (Muñoz y Real, 2006). Posteriormente, para evitar la multicolinealidad entre estas variables, se ha aplicado un coeficiente de correlación de Spearman entre ellas. Para cada pareja de variables con valor de correlación superior a 0,8, se ha seleccionado la variable con mayor nivel de significancia individual (α) (Chamorro *et al.*, 2020).
 
@@ -379,7 +402,10 @@ Se ha obtenido la favorabilidad de la especie para los datos climáticos histór
 
 ```{r}
 
-tabla_variables <- subset(tabla_variables, select=-predictors_names)
+metadata <- readr::read_delim(file = "01_DATA/OUTPUT/metadata_predictors.csv")
+
+
+tabla_variables <- subset(metadata, select=-predictors_names )
 colnames(tabla_variables) <- c("Tipología", "Nombre", "Descripción", "Paisaje", "Habitat", "NestSite", "Factores")
 
 flextable(tabla_variables) %>%
@@ -399,7 +425,6 @@ colformat_double(
   bg(i=which(tabla_variables$Tipología =="LITOLOGÍA"),  part = "body", bg =  "#FBE4D5") %>%
   flextable::width(width=0.9)  %>%
   set_table_properties(layout = "autofit")
-
 
 ```
 

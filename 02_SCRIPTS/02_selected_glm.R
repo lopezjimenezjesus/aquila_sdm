@@ -155,10 +155,14 @@ ggsave(filename = file.path(paths$figure_path, 'fav_historical_model_c10.png'),
 
 
 library(patchwork)
-p10 + p
+
+q <- (p10 + p) 
+
+dpi = 96
 
 ggsave(filename =  file.path(paths$figure_path, 'fav_historical_model_c3_10.png'), 
-         plot = p10 + p, dpi = "retina")
+         plot = q, width = 1000 / dpi, height = 500 / dpi,
+       dpi = dpi)
 
 
 ## Plot intermediate models 
