@@ -182,16 +182,25 @@ ggsave(filename =  file.path(paths$figure_path, 'intermediate_models_fav.svg'),
 ## Variance partition
 ##################################################
 
-dput(colnames(model.glm.trimmed$data))
+coef_model <-dput(names(coef(model.glm.trimmed)))[-1]
 
-#dput(names(coef(model.glm)))[-1]
+#coef_model <- dput(names(coef(model.glm)))[-1]
 
 predictors_table <- readr::read_delim(file = "01_DATA/OUTPUT/metadata_predictors.csv")
 
-# get groups from predictor_table
-var_groups <- data.frame(vars=names(coef(model.glm.trimmed))[-1],
-                         groups=predictors_table[predictors_table$predictors_names %in% dput(names(coef(model.glm.trimmed)))[-1], "factores"])
 
+# get groups from predictor_table
+
+groups_vars <-  subset(predictors_table, predictors_names %in% coef_model)
+
+var_groups <- data.frame(variables=groups_vars$predictors_names, factores=groups_vars$factores)
+
+# # get groups from predictor_table
+# var_groups <- data.frame(vars=names(coef(model.glm.trimmed))[-1],
+#                          groups=predictors_table[predictors_table$predictors_names %in% dput(names(coef(model.glm.trimmed)))[-1], "factores"])
+# 
+
+# with(predictors_table, factores[names(coef(model.glm.trimmed))[-1] %in% predictors_names])
 
 png(filename=file.path(paths$figure_path, "variance_plot.png"), width = 800, height = 800)
 varPart(model = model.glm.trimmed, groups = var_groups,plot.unexpl=FALSE, cex.names	=1, pred.type = "P")
@@ -204,10 +213,10 @@ dev.off()
 # add sign of coefficients
 
 var_groups <- var_groups %>% mutate(
-  sign= if_else(do.call(
+  signo = if_else(do.call(
     what = function(x) {x>0}, list(coef(model.glm.trimmed)[2:length(coef(model.glm.trimmed))])),
                 "+", "-")) %>% 
-  mutate(var_sign=paste0(vars, "(", sign, ")"))
+  mutate(var_sign=paste0(variables, "(", signo, ")"))
 
 # format to report
 
@@ -255,7 +264,13 @@ crosspred_glm <- mecofun::crossvalSDM(model.glm.trimmed, traindat= xy,
 evalsdm <-  mecofun::evalSDM(xy$AQUADA, crosspred_glm)
 
 
-tm <- threshMeasures(model = model.glm.trimmed, ylim = c(0, 1), thresh = 0.5)
+#tm <- threshMeasures(model = model.glm.trimmed, ylim = c(0, 1), thresh = 0.5)
+
+# using fav instead model
+
+tm <- threshMeasures(pred = Fav((model.glm.trimmed)), obs=xy$AQUADA, ylim = c(0, 1), thresh = 0.5)
+
+
 
 c_m <-  as.data.frame(tm$ConfusionMatrix)
 

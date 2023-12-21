@@ -68,9 +68,6 @@ xy <- xy %>% select(-"CUADRICULA") %>% rename("sp"="AQUADA")
 
 bc <- bioclim(xy %>% dplyr::select(-"sp") %>% as.matrix(), xy$sp)
 
-
-
-
 ## RF
 ##################################################
 library(randomForest)

@@ -164,7 +164,7 @@ create_folder <- function(path="04_RESULTS", folder_name="") {
   path_for_report <- file.path(path, folder_name, "03_Report")
   
   if(dir.exists(path_for_models) || dir.exists(path_for_figures) ||  dir.exists(path_for_report)) {
-    print("Folder exists, using it")
+    # print("Folder exists, using it")
     return(list(model_path=path_for_models, figure_path=path_for_figures, report_path=path_for_report))
   } else {
     dir.create(path_for_models, recursive =TRUE)

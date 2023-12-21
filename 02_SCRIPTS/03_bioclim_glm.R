@@ -28,6 +28,7 @@ library(kableExtra)
 
 here::i_am('Aquila_adalberti_SDM.Rproj')
 
+
 # BIO1 = Annual Mean Temperature
 # BIO2 = Mean Diurnal Range (Mean of monthly (max temp - min temp))
 # BIO3 = Isothermality (BIO2/BIO7) (* 100)
@@ -109,7 +110,9 @@ tiff_files_2081_2100 <- load_list_of_tif(path_to_tif, "2081-2100")
 resample_and_scale_tif <- function(tif_file_path, from_raster) {
   r <- terra::rast(tif_file_path) # load raster
   names(r)  <- c(paste0("Bio0", 1:9), paste0("Bio", 10:19))
-  r <- terra::resample(r, from_raster)  %>% 
+  # r <- terra::resample(r, from_raster)  %>% 
+  #   scale(center=TRUE, scale=TRUE) # empty cells!
+  r <-r  %>% 
     scale(center=TRUE, scale=TRUE)
   return(r)
 }
@@ -125,10 +128,35 @@ tiff_files_2041_2060_scaled <- rename_list_of_tif(lapply(tiff_files_2041_2060, r
 tiff_files_2061_2080_scaled <- rename_list_of_tif(lapply(tiff_files_2061_2080, resample_and_scale_tif, ext.raster))
 tiff_files_2081_2100_scaled <- rename_list_of_tif(lapply(tiff_files_2081_2100, resample_and_scale_tif, ext.raster))
 
-## Get predictors from presence / abssence data
+## Get predictors from presence / absence data
 ##################################################
 
 presence_predictors <- extract(ext.raster, aa.sf %>% st_transform(st_crs(ext.raster)) %>% st_centroid() %>% st_coordinates())  %>% scale()
+
+
+## Add slope and alt
+##################################################
+
+
+utm10 <- st_read('01_DATA/INPUT/shp/CUTM10_AQUADA.shp') %>% dplyr::select("CUADRICULA")
+
+x_2 <- read_excel(path = here::here('01_DATA/INPUT/CUTM10extVariables.xlsx'), sheet = "CUTM10extVariables")
+
+y_2 <- read_excel(path = here::here('01_DATA/INPUT/Presencia_Imperial_CUTM10.xlsx'), sheet = "Presencia")
+
+xy_2 <- right_join(x_2,y_2, by="CUADRICULA")
+
+
+paste(names(xy_2)[1:dim(xy_2)[2]], collapse = " + ")
+
+metadata <- readr::read_delim(file = "01_DATA/OUTPUT/metadata_predictors.csv")
+
+paisaje <- read_csv(file = "01_DATA/OUTPUT/paisaje_predictors.csv")
+
+xy_2 <- xy_2 %>% dplyr::select(all_of(c(paisaje$predictors_names, "AQUADA")))
+
+presence_predictors <- cbind(presence_predictors, alt=xy_2$ALT_MED, alt2=(xy_2$ALT_MED)*(xy_2$ALT_MED), slope=xy_2$Slope_mean)
+
 
 xy.scaled <- cbind(presence_predictors, sp=aa.sf$sp) %>% as.data.frame()
 
@@ -237,21 +265,30 @@ bmod_aa_biohist <- step(null.model, direction = "forward",
 
 bmod_aa_biohist.trimmmed <- modelTrim(bmod_aa_biohist)
 
-
-foo <-  glm(formula = sp ~ Bio09 + Bio03 + Bio14 + Bio15 + Bio08 + Bio13 , family = binomial, data=xy.scaled)
-
-
+# 
+# foo <-  glm(formula = sp ~ Bio09 + Bio03 + Bio14 + Bio15 + Bio08 + Bio13 , family = binomial, data=xy.scaled)
+# 
+# 
 
 ## Model 2: by Feature selection
 ##################################################
 
+
+# make_model <- function(nm) lm(xy.scaled[c("sp", nm)])
+# fits <- Map(make_model, xy.scaled)
+# 
+# glance_tidy <- function(x) c(unlist(glance(x)), unlist(tidy(x)[, -1]))
+# out <- sapply(fits, glance_tidy)
+
 # FDR
 
-xy.scaled.selection <- FDR(data=xy.scaled,sp.cols = 20, var.cols = 1:19)
+var_cols = dim(xy.scaled)[2] - 1
+
+xy.scaled.selection <- FDR(data=xy.scaled,sp.cols = dim(xy.scaled)[2], var.cols = 1:var_cols)
 
 bioclim_predictors <- sort(rownames(xy.scaled.selection$select))
 
-xy.scaled.selection <- (xy.scaled  %>% dplyr::select(all_of(bioclim_predictors), "sp"))
+xy.scaled.selection <- (xy.scaled  %>% dplyr::select(all_of(bioclim_predictors),  "sp"))
 
 # Correlation
 
@@ -500,10 +537,51 @@ do.call("grid.arrange", c(favourability_2081_2100_plot_2, ncol = 2))
 
 x1 <- c(rbind(favourability_2021_2040_plot_,favourability_2021_2040_plot_2))
 x2 <- c(rbind(favourability_2041_2060_plot_,favourability_2041_2060_plot_2))
-x3 <- c(rbind(favourability_2061_2080_plot_,favourability_2081_2100_plot_2))
+x3 <- c(rbind(favourability_2061_2080_plot_,favourability_2061_2080_plot_2))
 x4 <- c(rbind(favourability_2081_2100_plot_,favourability_2081_2100_plot_2))
 
 x <-  c(rbind(x1,x2, x3, x4))
+
+# Get number of cells in each category (low, middle, high) for all models
+
+# Patrón de expresión regular
+patron <- "^(\\d+) \\((\\d+-\\d+)\\)$"
+
+cells_in_each_category <- sapply(x, function(x){
+  # Aplica la expresión regular y captura los grupos
+  resultados <- str_match(x$label$title, patron)
+  
+  df <- data.frame(rbind(table(x$data$category)), title= x$label$title, escenario=resultados[2], periodo=resultados[3],
+                   type=if_else(length(names(table(x$data$category))) == 2, "cat_2", "cat_3"))
+  return(df)
+})
+
+
+cells_in_each_category <-bind_rows(cells_in_each_category, .id = "column_label")
+
+cells_in_each_category <- pivot_longer(cells_in_each_category, c(low, middle, high), values_to = "Value", names_to = "category")
+
+
+
+# Crea el gráfico de tendencias
+ggplot(cells_in_each_category, aes(x = periodo, y = Value, color = escenario, group = interaction(escenario, category))) +
+  geom_line() +
+  geom_point() +
+  geom_smooth(method = "lm", se = TRUE, aes(group = interaction(type, category)), color = "black", linetype = "dashed") +
+  facet_wrap(~type+category , scales = "free_y") +
+  labs(title = "Tendencias por Escenario",
+       x = "Período",
+       y = "Valor") +
+  theme_minimal()
+
+
+# 
+# ggplot(data=cells_summary) + 
+#   geom_line(aes(x = ))
+
+write_rds(cells_in_each_category,  file.path(paths$model_path, "cells_in_each_category.rds"))
+
+## Arrange x plots
 
 xx <- do.call("grid.arrange", c(x , ncol = 4))
 
@@ -527,60 +605,61 @@ library(grid)
 
 plot_grid <- function() {
 
-p126_2cat <- x1[[2]] +labs(title="2021-2040") +  
+p126_2cat <- x1[[2]] +labs(title="2021-2040") + theme(plot.title = element_text(size=10)) +
   ylab("126")  + 
-  theme(axis.title.y = element_text(angle = 90, hjust = -0.35, size = 14)) + 
-  x2[[2]] +labs(title="2041-2060") + 
-  x3[[2]] +labs(title="2061-2080") +  
-  x4[[2]] +labs(title="2081-2100") +
+  theme(axis.title.y = element_text(angle = 90, hjust = -0.325, size = 10)) + 
+  x2[[2]] +labs(title="2041-2060")  + theme(plot.title = element_text(size=10)) +
+  x3[[2]] +labs(title="2061-2080")  + theme(plot.title = element_text(size=10)) +
+  x4[[2]] +labs(title="2081-2100")  + theme(plot.title = element_text(size=10)) +
   plot_layout(nrow = 1, byrow = FALSE)
 
-p126_3cat <- x1[[1]] + labs(title="") + x2[[1]] + labs(title="") + x3[[1]] +
-  labs(title="") + x4[[1]] + labs(title="")  + plot_layout(nrow = 1, byrow = FALSE)
+p126_3cat <- x1[[1]] + labs(title=NULL) + x2[[1]] + labs(title=NULL) + x3[[1]] +
+  labs(title=NULL) + x4[[1]] + labs(title=NULL)  + plot_layout(nrow = 1, byrow = FALSE)
 
-p245_2cat <- x1[[4]] + labs(title="") +    
+p245_2cat <- x1[[4]] + labs(title=NULL) +    
   ylab("245")  + 
-  theme(axis.title.y = element_text(angle = 90, hjust = -0.35, size = 14)) + 
-  x2[[4]] + labs(title="") + 
-  x3[[4]] + labs(title="") +   
-  x4[[4]] + labs(title="") + 
+  theme(axis.title.y = element_text(angle = 90, hjust = -0.325, size = 10)) + 
+  x2[[4]] + labs(title=NULL) + 
+  x3[[4]] + labs(title=NULL) +   
+  x4[[4]] + labs(title=NULL) + 
   plot_layout(nrow = 1, byrow = FALSE) 
 
-p245_3cat <- x1[[3]] + labs(title="") + x2[[3]] + labs(title="")  + x3[[3]] + 
-  labs(title="") + x4[[3]] + labs(title="")  +
+p245_3cat <- x1[[3]] + labs(title=NULL) + x2[[3]] + labs(title=NULL)  + x3[[3]] + 
+  labs(title=NULL) + x4[[3]] + labs(title=NULL)  +
   plot_layout(nrow = 1, byrow = FALSE)
 
-p370_2cat <- x1[[6]]  + labs(title="") + 
+p370_2cat <- x1[[6]]  + labs(title=NULL) + 
   ylab("370")  + 
-  theme(axis.title.y = element_text(angle = 90, hjust = -0.35, size = 14)) + 
-  x2[[6]]  + labs(title="") +  
-  x3[[6]]  + labs(title="") + 
-  x4[[6]]  + labs(title="") + 
+  theme(axis.title.y = element_text(angle = 90, hjust = -0.325, size = 10)) + 
+  x2[[6]]  + labs(title=NULL) +  
+  x3[[6]]  + labs(title=NULL) + 
+  x4[[6]]  + labs(title=NULL) + 
   plot_layout(nrow = 1, byrow = FALSE) 
 
-p370_3cat <- x1[[5]] + labs(title="")  + x2[[5]] + labs(title="")  + x3[[5]] + labs(title="")  +
-  x4[[5]] + labs(title="")  + plot_layout(nrow = 1, byrow = FALSE)
+p370_3cat <- x1[[5]] + labs(title=NULL)  + x2[[5]] + labs(title=NULL)  + x3[[5]] + labs(title=NULL)  +
+  x4[[5]] + labs(title=NULL)  + plot_layout(nrow = 1, byrow = FALSE)
 
 
-p585_2cat <- x1[[8]]  + labs(title="") + 
+p585_2cat <- x1[[8]]  + labs(title=NULL) + 
   ylab("585")  + 
-  theme(axis.title.y = element_text(angle = 90, hjust = -0.35, size = 14)) + 
-  x2[[8]]  + labs(title="") +  
-  x3[[8]]  + labs(title="") +   
-  x4[[8]]  + labs(title="") + 
+  theme(axis.title.y = element_text(angle = 90, hjust = -0.325, size = 10)) + 
+  x2[[8]]  + labs(title=NULL) +  
+  x3[[8]]  + labs(title=NULL) +   
+  x4[[8]]  + labs(title=NULL) + 
   plot_layout(nrow = 1, byrow = FALSE) 
 
-p585_3cat <- x1[[7]] + labs(title="") + x2[[7]] + labs(title="")+ x3[[7]] + labs(title="")  +
-  x4[[7]] + labs(title="")  + plot_layout(nrow = 1, byrow = FALSE)
+p585_3cat <- x1[[7]] + labs(title=NULL) + x2[[7]] + labs(title=NULL)+ x3[[7]] + labs(title=NULL)  +
+  x4[[7]] + labs(title=NULL)  + plot_layout(nrow = 1, byrow = FALSE)
 
 
-h_patch <- p126_2cat / p126_3cat + plot_layout(nrow = 2, byrow = FALSE) &  theme(plot.margin = unit(c(0,1,0,1), "cm"))
+h_patch <- p126_2cat / p126_3cat + plot_layout(nrow = 2, byrow = FALSE) &  theme(plot.margin = unit(c(0,0,0,0), "cm"))
 
-h_patch2 <- p245_2cat / p245_3cat + plot_layout(nrow = 2, byrow = FALSE) &  theme(plot.margin = unit(c(0,1,0,1), "cm"))
+h_patch2 <- p245_2cat / p245_3cat + plot_layout(nrow = 2, byrow = FALSE) &  theme(plot.margin =unit(c(0,0,0,0), "cm"))
 
-h_patch3 <- p370_2cat / p370_3cat + plot_layout(nrow = 2, byrow = FALSE)  &  theme(plot.margin = unit(c(0,1,0,1), "cm"))
+h_patch3 <- p370_2cat / p370_3cat + plot_layout(nrow = 2, byrow = FALSE)  &  theme(plot.margin =unit(c(0,0,0,0), "cm"))
 
-h_patch4 <- p585_2cat / p585_3cat + plot_layout(nrow = 2, byrow = FALSE)  &  theme(plot.margin = unit(c(0,1,0,1), "cm"))
+h_patch4 <- p585_2cat / p585_3cat + plot_layout(nrow = 2, byrow = FALSE)  &  theme(plot.margin = unit(c(0,0,0,0), "cm"))
+
 
 
 future_layout <- (wrap_elements(h_patch) +
@@ -600,28 +679,31 @@ future_layout <- (wrap_elements(h_patch) +
   (wrap_elements(h_patch3)  +
      # labs(tag = "245") +
      theme(
-       plot.tag = element_text(size = rel(1), angle = 90),
+       plot.tag = element_text(size = rel(0.5), angle = 90),
        plot.tag.position = "left"
      ))  /  plot_spacer() / 
   
   (wrap_elements(h_patch4)  +
      # labs(tag = "245") +
      theme(
-       plot.tag = element_text(size = rel(1), angle = 90),
+       plot.tag = element_text(size = rel(0.5), angle = 90),
        plot.tag.position = "left"
      )) +  
   plot_layout(heights = c(8, 0, 8, 0, 8, 0, 8), guides = "collect")
 
+  future_layout <-  p126_2cat / p126_3cat /  p245_2cat / p245_3cat / p370_2cat / p370_3cat / p585_2cat / p585_3cat
+
+
   return(future_layout)
 }
 
-future_layout <- plot_grid()
+future_layout <- plot_grid() +  plot_annotation(theme = theme(plot.margin = margin(r=-1, l=-1)))
 
 ggsave(filename = file.path(paths$figure_path, "future_prediction_2.png"), 
-       plot = future_layout,  dpi = "retina", width = 210, height = 297, units = "mm")
+       plot = future_layout,  dpi = "retina", width = 210, height = 260, units = "mm")
 
 
-
+knitr::plot_crop( file.path(paths$figure_path, "future_prediction_2.png"))
 
 ##################################################
 ## Section: Metrics ----
@@ -629,7 +711,7 @@ ggsave(filename = file.path(paths$figure_path, "future_prediction_2.png"),
 
 ## model_to_explore
 
-# hosmer
+# hosmer BLR ----
 
 blr <- blr_test_hosmer_lemeshow(model_to_explore)
 
