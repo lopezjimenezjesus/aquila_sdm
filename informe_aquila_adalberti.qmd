@@ -1,9 +1,10 @@
 ---
-title: "Modelos de favorabilidad Aquila_dalberti"
+title: "Modelos de favorabilidad del Águila Imperial - Aquila adalberti"
 author: "Jesús Jiménez López"
 format:
   docx:
     reference-doc: custom-reference-doc.docx
+    toc: true
 editor: visual
 lang: es
 execute:
@@ -224,19 +225,22 @@ fav_presencia <- round(cm_bind_per[1],2)
 nest_model <- readRDS(file = file.path(paths$model_path, "nest_model.rds"))
 nest_model_long <- readRDS(file =  file.path(paths$model_path, "nest_model_steps.rds"))
 
-nest_percent_fav_alta <- round(sum(Fav(nest_model) >= 0.8) / length(Fav(nest_model)) *100, 2)
-
-nest_percent_fav_alta_2 <- round(sum(Fav(nest_model) >= 0.9) / length(Fav(nest_model)) *100, 2)
-
-nest_n_fav_alta <- sum(Fav(nest_model) > 0.8)
-
-nest_n_fav_baja <- sum(Fav(nest_model) <= 0.2)
-nest_n_fav_baja_2 <- sum(Fav(nest_model) <= 0.1)
+fav_nest <- Fav(nest_model)[1:83]  # get presence fav only
 
 
-nest_percent_fav_baja <- round(sum(Fav(nest_model) <= 0.2) / length(Fav(nest_model)) *100, 2)
+nest_percent_fav_alta <- round(sum(fav_nest >= 0.8) / length(fav_nest) *100, 2)
 
-nest_n_fav_intermedia <- sum(Fav(nest_model) >= 0.2 & Fav(nest_model) <= 0.8)
+nest_percent_fav_alta_2 <- round(sum(fav_nest >= 0.9) / length(fav_nest) *100, 2)
+
+nest_n_fav_alta <- sum(fav_nest > 0.8)
+
+nest_n_fav_baja <- sum(fav_nest <= 0.2)
+nest_n_fav_baja_2 <- sum(fav_nest <= 0.1)
+
+
+nest_percent_fav_baja <- round(sum(fav_nest <= 0.2) / length(fav_nest) *100, 2)
+
+nest_n_fav_intermedia <- sum(fav_nest >= 0.2 & fav_nest <= 0.8)
 
 
 
@@ -288,15 +292,119 @@ n_middle_cat_3_p <- round((n_middle_cat_3 / n_total_cat_3)*100, 2)
 
 ```
 
-# Aguila Imperial (Aquila adalberti)
+```{r}
 
-## Distribución a nivel de paisaje
+## HABITAT 
+
+habitat_model <- readRDS(file = file.path(paths$model_path, "habitat_model.rds"))
+
+habitat_model_step <- readRDS( file =  file.path(paths$model_path, "habitat_model_steps.rds"))
+
+habitat_blr <- read_rds(file = file.path(paths$model_path, "habitat_blr.rds"))
+
+habitat_tabla_coef <- readRDS(file = file.path(paths$model_path, "habitat_tabla_coef.rds"))
+
+habitat_fdr <- readRDS(file = file.path(paths$model_path, "habitat_fdr.rds"))
+
+
+fav_habitat <- Fav(habitat_model)[1:69]  # get presence fav only
+
+
+habitat_percent_fav_alta <- round(sum(fav_habitat >= 0.8) / length(fav_habitat) *100, 2)
+
+habitat_percent_fav_alta_2 <- round(sum(fav_habitat >= 0.9) / length(fav_habitat) *100, 2)
+
+habitat_n_fav_alta <- sum(fav_habitat > 0.8)
+
+habitat_n_fav_baja <- sum(fav_habitat <= 0.2)
+habitat_n_fav_baja_2 <- sum(fav_habitat <= 0.1)
+
+
+habitat_percent_fav_baja <- round(sum(fav_habitat <= 0.2) / length(fav_habitat) *100, 2)
+
+habitat_n_fav_intermedia <- sum(fav_habitat >= 0.2 &fav_habitat <= 0.8)
+
+# total <- habitat_percent_fav_alta + habitat_percent_fav_baja +  round(sum(fav_habitat >= 0.2 & fav_habitat <= 0.8) / length(fav_habitat) *100, 2)
+
+```
+
+# ÁGUILA IMPERIAL (Aquila adalberti) - LA ESPECIE EN EXTREMADURA
+
+## Distribución espacial de la especie en Extremadura
 
 ### Introducción
 
-La selección del hábitat es un proceso que suele producirse de forma jerárquica, donde las características a mayor escala se seleccionan antes que las de menor (Johnson, 1980; Jones y Robertson, 2001). Se ha sugerido que estos procesos afectan a la selección de los lugares de nidificación (Orians y Wittenberger, 1991; Martínez *et al.*, 2003), ya que para que las características a menor escala sean las adecuadas, deben estar englobadas en el paisaje adecuado. El estudio de la distribución de las especies en relación con las características del paisaje puede ser de gran ayuda para construir modelos con los que mejorar estimas demográficas a gran escala, o para desarrollar una estratificación en muestreos para la investigación y seguimiento (Cowardin *et al.*, 1995; Johnson *et al.*, 2009).
+Para evaluar el estado de conservación de una especie y proponer medidas efectivas para la mejora de sus poblaciones mediante la gestión y manejo de su hábitat, es necesario no solo conocer la distribución de la especie sino también los factores ambientales, geográficos y bióticos que influyen en la localización de sus puntos de nidificación, cría, alimentación, etc. El análisis de estos factores conduce a los modelos de distribución de especies, que hoy día son ampliamente utilizados (Barbosa et al., 2013) en ecología, conservación y gestión de la propia especie (Jiménez-Valverde y Lobo, 2007). Estos modelos atienden a la necesidad de conocer las razones por las cuales un evento (presencia de la especie) se da en un punto determinado y la probabilidad que hay que tal situación se de en cualquier punto de su supuesta área potencial de distribución (Real et al., 2006).
 
-### Metodología y resultados
+Estos modelos pueden desarrollarse mediante herramientas muy diversas que lo que aportan es una probabilidad, pero existen algunas diferencias entre ellas. En el caso de los derivados directamente de una clasificación mediante una regresión logística, se produce un sesgo hacia el evento más abundante en la muestra (presencia o ausencia de la especie) (Real et al., 2006) y tal circunstancia es independiente del modelo (Hosmer y Lemeshow, 1989; Rojas et al., 2001). Por lo tanto, si la proporción en el territorio estudiado de presencias y ausencias no es uniforme, la probabilidad de presencia de la especie en un punto dado reflejará esta desigualdad, ya que el modelo sesgará esta probabilidad hacia el evento más abundante (Real et al., 2006). Para solucionar algunos de los problemas planteados por la desigual frecuencia de presencias/ausencias en los estudios de distribución de especies, Real et al. (2006) proponen la función de favorabilidad, que proporciona valores conmensurables independientemente de cual sea la proporción de presencias/ausencias en nuestros datos. En este caso, la favorabilidad mide el grado en que las condiciones locales permiten una probabilidad local mayor o menor que la esperada por azar (esta probabilidad al azar se define como la prevalencia total del evento, Acevedo y Real 2012).
+
+Por ello en el presente apartado se pretende acometer el modelo de distribución del águila imperial mediante la metodología propuesta por (Real et al., 2006), que ha sido ampliamente utilizada en numerosos estudios (Acevedo et al., 2011; Castro et al., 2008; Muñoz et al., 2005; Pulido et al., 2018; Romero et al., 2019). El análisis de la función de favorabilidad en Extremadura se ha realizado en relación directa a los factores antrópicos, físicos, climáticos, del uso del suelo, de paisaje y de vegetación.
+
+### Metodología
+
+#### *Obtención y descripción de los datos y variables utilizadas*
+
+Los datos de distribución del águila imperial (en adelante AQUADA por abreviación de su nombre científico), provienen de los censos anuales de la Dirección General de Medio Ambiente de la Junta de Extremadura para los años comprendidos entre 2005 y 2019, donde se localizan puntualmente los nidos de esta especie y se realiza un seguimiento de su éxito reproductor. Para llevar a cabo el cálculo de la favorabilidad en estos territorios, se han establecido cuadrículas UTM de 10 kilómetros (CUTM10) de lado que han tenido al menos una presencia de la especie reproductora (pareja segura, pareja probable y territorio ocupado) para cada año. El tamaño de cuadrícula seleccionado, ya ha sido utilizado con anterioridad en otros estudios previos de rapaces (Carrete et al., 2000; Muñoz et al., 2005; Tapia et al., 2007; De Vittorio et al., 2012).
+
+Analizando la frecuencia acumulada de la presencia de AQUADA en estas cuadrículas (Figura 1) se ha observado que tras los tres primeros periodos, su número se estabiliza con incrementos muy inferiores a los alcanzados en primer lugar. Este hecho, estableció la utilización del periodo (2017-2019) como indicador de la localización espacial actual del águila imperial en Extremadura, acumulando este periodo el 85% del total del área de presencia de la especie en los últimos 10 años. Optimizando de esta manera el mayor número de CUTM10 con el menor número de años, evitando así la inclusión de territorios abandonados por la especie que no sean representativos para su distribución espacial actual.
+
+![Número de cuadrículas UTM de 10 km de lado con presencia de la especie AQUADA por periodos acumulativos (azul) y su incremento respecto al periodo anterior (naranja).](01_DATA/INPUT/figures/presencia_sp_barras.png)
+
+Finalmente se han obtenido 131 cuadrículas UTM de 10 kilómetros de lado con presencia de CICNIG, de un total de 516 cuadrículas que incluye Extremadura, es decir, el 25.4% del territorio extremeño (Figura 2).
+
+Los distintos factores que potencialmente pueden influir en la presencia de la especie quedan definidos por distintas variables explicativas. La misma malla de cuadrículas UTM utilizada para definir las presencias y ausencias de CICNIG, ha sido utilizada para extraer los valores de las diferentes variables, obtenidas de múltiples fuentes (Anexo 1) y clasificadas en las siguientes tipologías: variables topográficas, espaciales, climáticas y antrópicas, así como variables del uso del suelo, del paisaje, la vegetación y relacionadas con la caza y la ganadería. Todas las variables, cuya resolución espacial mínima es de al menos 1 km y máxima de 2,5 metros en el mejor de los casos, se han homogeneizado, transformando todos los datos ráster a una resolución de 25 metros de lado y recortándose por los límites de la Comunidad Autónoma de Extremadura. Esta resolución también ha sido tomada para la transformación de los datos de distancias y densidades provenientes de capas vectoriales.
+
+![Presencia de la especie AQUADA (azul) en la malla de cuadrículas UTM de 10 km de lado.](01_DATA/INPUT/figures/presencia_sp_mapas.png)
+
+#### *Análisis de los datos*
+
+Se han calculado para todas las variables los datos medios por cuadrículas UTM de 10 kilómetros de lado mediante las herramientas de estadística zonal del software ArcGIS 10.1, salvo los datos de porcentaje de usos del suelo que han sido calculados mediante la intersección de las capas vectoriales de las cuadrículas UTM y la cartografía del Corine Land Cover, utilizándose para ello el mismo software. Los cálculos y tratamientos estadísticos de estos datos se han realizado con el software R versión 4.2.0, mediante RStudio versión 2021.09.2, y los paquetes 'terra' (para creación de mapas), 'fuzzySim' (para la selección de variables, el cálculo de la favorabilidad y de su variación en el tiempo), 'aod' (para el cálculo del test de Wald y otros estadísticos asociados a los modelos) y 'modEvA' (para la evaluación de los modelos y partición de la variación).
+
+Inicialmente se ha realizado un análisis para crear un subconjunto de variables predictivas significativas mediante un análisis de regresión logística binaria de la presencia/ausencia de la especie respecto a cada una de las 91 variables disponibles (Muñoz y Real, 2006), obteniendo la significancia individual de cada variable dentro del modelo y seleccionando el conjunto de variables significativas bajo una Tasa de Descubrimiento Falso (FDR, siglas del inglés False Discovery Rate) (Benjamini y Hochberg, 1995) de q\<0,05 (Benjamini y Yekutieli, 2001), para evitar el aumento de hallazgos falsos cuando se analiza un gran número de variables debido al aumento del error de Tipo I, recomendado por García (2003) en investigaciones de procesos ecológicos.
+
+Las variables seleccionadas mediante la técnica anterior se han utilizado de nuevo como variables independientes en un análisis de regresión logística binaria por pasos hacia adelante condicional, con la relación de presencias y ausencias de AQUADA como variable dependiente, manteniendo un umbral de significación de 0,05 para la inclusión de cada variable en el modelo y de 0,10 para su eliminación (Acevedo et al., 2011). Con él, se han obtenido las variables finales del modelo, estableciendo para cada una de ellas su peso en la ecuación ($\beta$), el error típico (E.T.), su importancia en el modelo (Wald), su significación estadística (Sig.) y la estimación de los Odd Ratio (Exp(B)) (Real et al., 2006). De igual manera, se han obtenido los valores de probabilidad total de presencia de la especie para cada cuadrícula UTM, calculados según la función:
+
+$$
+P=\frac{e^y}{1+e^y}
+$$
+
+Donde *P* es la probabilidad de presencia de la especie, *e* es la base del logaritmo neperiano, e *y* es una combinación lineal de variables seleccionadas, obtenida mediante la siguiente fórmula:
+
+$$
+y = \alpha + \beta_1 x_1 + \beta_2 x_2 + ... + \beta_nx_n 
+$$
+
+Donde $\alpha$ es una constante, $x_n$ las variables que actúan como predictores espaciales, $\beta_n$ sus respectivos coeficientes de peso en el modelo.
+
+Los valores de probabilidad que resultan de la regresión logística no dependen sólo de las variables predictivas, sino también de la probabilidad al azar derivada de la proporción de presencias en el área de estudio que puede producir un sesgo importante hacia el evento más abundante en la muestra. Por ello, se ha aplicado la función de favorabilidad (Real et al., 2006) que tiene en cuenta la proporción de ausencias y presencias estudiadas, y proporciona valores conmensurables independientes de estas:
+
+$$
+F= \frac{e^y}{\frac{n_1}{n_0} + e^y}
+$$
+
+Donde *F* es la favorabilidad, $n_1$ el número de presencias, $n_0$ el número de ausencias y $e^y$ proveniente de los cálculos de probabilidad comentados con anterioridad.
+
+De esta manera, la favorabilidad resultante presenta la ventaja respecto de la probabilidad de proporcionar un resultado independiente de la prevalencia (Acevedo y Real, 2012) y el valor de la favorabilidad responde únicamente al conjunto de variables utilizadas para construir el modelo, indicando el grado que esos factores favorecen (1) o desfavorecen (0) la presencia de la especie.
+
+Para conocer la respuesta espacial de los resultados, se pueden visualizar de diferentes formas según se establezcan el número de clases y los puntos de corte de las mismas. Para una primera visualización, se ha optado por la definición de 10 clases (pasos regulares de 0,1). Para una segunda visualización, se han definido 3 categorías: zonas desfavorables (\<0,2), cuya relación de probabilidades medias es 4:1; zonas de favorabilidad intermedia (0,2 -- 0,8) y zonas favorables (\>0,8), donde las probabilidades medias son menores que 1:4 (Castro et al., 2008).
+
+Para conocer estadística y espacialmente la importancia de las variables que entran en cada uno de los pasos de la regresión del modelo, se ha establecido la favorabilidad para cada uno de estos pasos, comparándola con el total mediante una correlación de Pearson (Muñoz et al.,2005).
+
+Las variables incluidas del modelo de favorabilidad pertenecientes a distintas tipologías (climáticas, topográficas, de usos del suelo, paisaje, vegetación, etc.) pueden ser agrupadas en factores ambientales bióticos y abióticos, así como factores en los que interviene directamente la mano del hombre (antrópicos). Para conocer el peso o porcentaje que explica cada factor dentro del modelo de favorabilidad, se ha llevado a cabo un procedimiento de partición de la variación (Legendre y Legendre, 1998), realizando una regresión logística para cada grupo de variables agrupados por factores, y las combinaciones de las variables de estos tres factores entre sí, comparándolos con el modelo final de AQUADA mediante una correlación de Pearson, cuya inversa al cuadrado ($1-R^2$) en tantos por uno explica la importancia de cada factor en el modelo.
+
+La favorabilidad no solo puede llegar a ser un indicativo de la distribución potencial de la especie sino también de la abundancia de parejas reproductoras que puede albergar una cuadrícula UTM de 10 km de lado, por ello se ha relacionado el número de nidos presentes en cada cuadrícula para el periodo de estudio (2017-2019) con los resultados de favorabilidad mediante una correlación de Pearson (Acevedo et al., 2011).
+
+Una especie puede disponer en un mismo territorio de zonas fuente donde la presencia de individuos en zonas de hábitat adecuado hace que la natalidad sea mayor que la mortalidad y esto facilite la propagación de individuos a otros territorios o, por el contrario, existir zonas sumidero donde predomine la mortalidad frente a la natalidad y reciba individuos de las zonas anteriores (Pulido et al., 2018). Para conocer la existencia de estas zonas en la Comunidad Autónoma de Extremadura se han establecido por cuadrículas UTM las zonas con alta favorabilidad (\>0,8) con presencia de la especie, como zonas fuente; y las zonas con baja favorabilidad (\<0,2) con presencia de la misma, como zonas sumidero.
+
+#### *Evaluación del modelo*
+
+Como primer paso para la evaluación del modelo resultante, se ha obtenido la bondad de ajuste del modelo Hosmer y Lemeshow (HyL), donde se evalúa su ajuste global (Hosmer y Lemeshow, 1989), especialmente para los modelos con covariables continuas y los estudios con tamaños de muestra pequeños como es el caso de AQUADA, siendo 1 si el ajuste de la probabilidad predicha se ajusta a la variable y buscando que no haya una significación (p\>0,05) de las diferencias esperadas de probabilidad respecto de las observadas mediante una prueba chi‐cuadrado. En segundo lugar, se ha calculado el área bajo la curva (AUC), siendo la capacidad para clasificar correctamente los resultados cuanto más alto sea este valor (AUC→1), considerándose resultados inadecuados los cercanos a 0,5 (Fielding y Bell, 1997). Por último, mediante una matriz de confusión, se han evaluado los resultados de favorabilidad de la especie en cada una de las cuadrículas UTM, estableciendo como límite el valor de 0,5 para considerar favorable o desfavorable una cuadrícula (Anderson et al., 2003). De igual forma se han calculado la Tasa de Subestima de la Predicción (UPR, de sus siglas en inglés Under Prediction Rate), que establece la relación de zonas con presencia de la especie localizadas en cuadrículas por debajo del límite de favorabilidad previamente establecido (\<0,5); y la Tasa de Sobreestima de la Predicción (OPR, de sus siglas en inglés Over Prediction Rate), que lo hace para la proporción de cuadrículas en las que no se encuentra la especie y que predicen una alta favorabilidad (Barbosa et al., 2013).
+
+### Resultado
+
+#### *Modelo de distribución espacial de la especie en Extremadura*
+
+La selección del hábitat es un proceso que suele producirse de forma jerárquica, donde las características a mayor escala se seleccionan antes que las de menor (Johnson, 1980; Jones y Robertson, 2001). Se ha sugerido que estos procesos afectan a la selección de los lugares de nidificación (Orians y Wittenberger, 1991; Martínez *et al.*, 2003), ya que para que las características a menor escala sean las adecuadas, deben estar englobadas en el paisaje adecuado. El estudio de la distribución de las especies en relación con las características del paisaje puede ser de gran ayuda para construir modelos con los que mejorar estimas demográficas a gran escala, o para desarrollar una estratificación en muestreos para la investigación y seguimiento (Cowardin *et al.*, 1995; Johnson *et al.*, 2009).
 
 Para determinar la favorabilidad del Águila imperial en la Comunidad Autónoma de Extremadura, se procedió en primer lugar a identificar aquellas variables predictoras más significativas para el conjunto de presencias y ausencias de la especie en Extremadura. Para ello se utilizó la Tasa de descubrimiento falso (FDR) que permite excluir aquellas variables con menor influencia en el modelo. Posteriormente se ajustó un modelo linear generalizado por pasos hacia adelante con las variables previamente seleccionadas. Como resultado el modelo incluyó un total de `r lcoef` variables (@tbl-coeficientes). En `r n_positive_coef` variables la relación ha sido positiva, y en `r n_negative_coef` de ellas negativa. Las variables con mayor peso en el modelo (Test de Wald) han sido `r max_wald_5[1,1]`, seguida de `r max_wald_5[2,1]`, `r max_wald_5[3,1]`, `r max_wald_5[4,1]` y `r max_wald_5[5,1]`.
 
@@ -422,9 +530,7 @@ knitr::include_graphics(file.path(paths$figure_path,"variance_plot_color.png"))
 
 ```
 
-## Distribución a nivel de Hábitat
-
-Datos.........
+## Selección de hábitat de la especie en Extremadura
 
 ### Introducción
 
@@ -432,13 +538,55 @@ La palabra "hábitat" hace referencia al conjunto de factores ambientales físic
 
 ### Metodología
 
+#### *Selección de hábitat de la especie en Extremadura*
+
 Para determinar los lugares de nidificación exactos, se han utilizado los datos de distribución de plataformas de nidificación. Para estudiar el hábitat de la especie en la comunidad se han creado "buffers" para cada una de las ubicaciones seleccionadas, de un radio de 2,5 km. El radio se ha estimado con base en datos de estudios previos de seguimiento de ejemplares marcados con transmisores GPS (Martínez-Miranzo et al., 2016; Perona et al., 2019); tomando como dato base la superficie que englobaría el área de uso activo, donde los individuos pasan la mayoría del tiempo, realizando actividades de alimentación o de descanso (Densidad de Kernel del 75 %; Bosch et al., 2010; Martínez-Miranzo et al., 2016; Perona et al., 2019). El buffer de 2.500 m se ha aplicado a todas aquellas ubicaciones de plataforma/nido que fueron utilizadas (PS, PP) u ocupadas (TO) por parejas en el periodo 2017-2019. Para aquellas parejas que ocuparon más de una plataforma durante este periodo, pero que se entiende que hacen uso año tras año de los mismos recursos de su territorio (Bosch et al., 2010), se ha obtenido el valor promedio de las coordenadas UTM de las plataformas utilizadas (Figura 25.A). En el caso de los territorios ocupados (TO) se ha utilizado el valor promedio de las coordenadas de todas las plataformas existentes en su territorio, con el fin de no aumentar el peso en el modelo de las parejas con más de una plataforma (Tabla 11). Los estudios de selección de hábitat requieren de la comparación de las áreas de presencia de la especie con una selección de áreas aleatorias (ausencias) repartidas por toda el área de estudio, en proporción 1:2 (Morán-López et al., 2006). Para establecer las localizaciones de ausencia de la especie, se han creado 212 puntos aleatorios y su respectiva área buffer de 2.500 m (Figura 25.B), separados una distancia mínima de 5.000 m entre ellos, evitando la localización de su centroide en los grandes embales de Extremadura y no pudiendo ser sus áreas coincidentes con ningún área de nidificación existente.
+
+La selección del hábitat de la especie puede estar influenciada por distintos factores, definidos por una serie de variables explicativas (Anexo 1). Se han calculado para una selección de dichas variables explicativas los datos medios por hábitat circular de 2.500 m de radio, mediante las herramientas de estadística zonal de *ArcGis 10.1*. Los cálculos y tratamientos estadísticos de estos datos se han realizado mediante el software estadístico R.
+
+El resto del proceso para obtener el modelo final de la selección del hábitat de la especie en la comunidad, junto a su favorabilidad, se ha realizado conforme a la metodología explicada en el apartado para el estudio del modelo de distribución (Ver apartado *1.2.4. Modelo de distribución espacial de la especie en Extremadura*).
 
 ### Resultados
 
-## Lugar de Nidificación
+En el caso del estudio del hábitat del águila imperial en Extremadura, la técnica FDR ha incluido `dim(habitat_fdr$select)[1]` variables significativas de un total de `r dim(habitat_fdr$select)[1] + dim(habitat_fdr$select)[2]` disponibles. Las variables seleccionadas se han incluido en el modelo de regresión logística por pasos hacia adelante ( `r dim(habitat_model_step$keep)[2]` pasos), estableciendo un total de `r length(coef(habitat_model))-1` variables explicativas (@tbl-habitat_coeficientes) estadísticamente significativas (p \<= 0,05). Los valores de bondad de ajuste del modelo han indicado que no han existido diferencias significativas (HyL \> 0,05) entre lo observado y lo esperado en la prueba de Hosmer y Lemeshow (HyL = `r round(habitat_blr$pvalue,3)`).
+
+```{r}
+#| label: tbl-habitat_coeficientes
+#| tbl-cap: "Variables en el último paso de la regresión logística (Paso 4), ordenadas por su inclusión en el modelo. β: coeficientes del parámetro de la ecuación, E.T: error típico, Wald: importancia en el modelo, Sig.: significación estadística, Exp(B): estimación de los Odd Ratio"
+#| tbl-cap-location: bottom
+
+flextable(habitat_tabla_coef) %>%
+bold(part = "header") %>% 
+colformat_double(
+  digits = 3, na_str = "N/A"
+  )  %>%
+  bg(bg = "#F7CAAC", part = "header") %>%
+  bg(i=seq(1,dim(habitat_tabla_coef)[1],2),  part = "body", bg =  "#FBE4D5") %>%
+   flextable::width(width=1) %>% border_outer()
+```
+
+`r sum(habitat_tabla_coef$β < 0)` de `r length(habitat_tabla_coef$β)` variables presentan valores negativos en los coeficientes, mientras que el resto ejercen una influencia positiva en la selección del hábitat. Entre las variables que han sido seleccionadas destaca el porcentaje de bosque (Bosq) como la variable con mayor peso en el modelo, seguida por la precipitación tanto en el mes de Enero como en todo el invierno (Pene, Pwin). Por el contrario la presencia de granito tiene una influencia menor, si bien se mantiene en el modelo como variable significativa (p \< 0.5).
+
+Los resultados de favorabilidad del hábitat de las localizaciones de las parejas activas (@fig-habitat_barplot3), han mostrado que el `r habitat_percent_fav_alta_2`% se localizan en el rango más alto de favorabilidad, encontrando tan solo `r habitat_n_fav_baja_2` pareja en la categoría de hábitat más desfavorable.
+
+```{r  label = fig-habitat_barplot10, echo = FALSE, fig.cap = "Frecuencias del número de localizaciones de territorios regentados (PS+PP+TO) (n = 83) del águila perdicera en 10 clases con pasos regulares de 0,1.", out.width = '100%'}
+
+knitr::include_graphics(file.path(paths$figure_path,"habitat_barplot_10.png"))
+
+```
+
+Teniendo en cuenta las zonas con alta favorabilidad (\>0,8) y las zonas con baja favorabilidad (\<0,2) (@fig-habitat_barplot3), se puede observar como el `r round(habitat_percent_fav_alta,2)` % de las plataformas activas se encuentran en zonas de alta favorabilidad, mientras que el `r habitat_percent_fav_baja` % de las localizaciones (`r habitat_n_fav_baja`) presentan una favorabilidad baja. El `r round(100 - habitat_percent_fav_baja - habitat_percent_fav_alta, 2)` % restante corresponde al número de plataformas activas (`r habitat_n_fav_intermedia` plataformas) que tienen una favorabilidad del área de nidificación intermedia.
+
+```{r  label = fig-habitat_barplot3, echo = FALSE, fig.cap = "Frecuencias del número de localizaciones de territorios regentados (PS+PP+TO) (n = 83) del águila perdicera en 3 clases con pasos regulares de 0,1.", out.width = '100%'}
+
+knitr::include_graphics(file.path(paths$figure_path,"habitat_barplot_3.png"))
+```
+
+## Selección del lugar de nidificación
 
 ### Introducción
+
+### Metodología
 
 La selección del lugar de nidificación del águila imperial se ha determinado mediante buffers de 500 m de radio alrededor de las localizaciones geográficas de las plataformas de cada una de las parejas. Dicha medida se basa en la utilización de cuadrículas 1 x 1 km UTM en estudios previos de selección del lugar de nidificación en rapaces (López-López *et al.*, 2006; López-López *et al.*, 2007c). El buffer de 500 m se ha aplicado a la ubicación de aquellas plataformas utilizadas (PS, PP) en el periodo 2019-2021 (@fig-plataforma), que suman un total de 83 plataformas.
 
@@ -454,7 +602,7 @@ La selección del lugar de nidificación de la especie puede estar influenciada 
 
 El resto del proceso para obtener el modelo final de la selección del hábitat de la especie en la comunidad, junto a su favorabilidad, se ha realizado conforme a la metodología explicada en el apartado para el estudio del modelo de distribución (Ver apartado *1.2.4. Modelo de distribución espacial de la especie en Extremadura*).
 
-### Nidotropía
+#### *Nidotropía*
 
 Para definir la nidotópica del águila imperial se han utilizado los valores de las variables referentes a la orientación, altitud y pendiente (obtenidas del MDT25; Anexo I); así como de la litología (SITEX, 2021) y sustrato de nidificación (observaciones durante el censo de la especie) procedentes de cada una de las localizaciones de la especie (Figura 34.A).
 
@@ -462,7 +610,9 @@ Para analizar la preferencia en la orientación de los nidos, se han utilizado m
 
 Para constatar la selección activa de lugares de nidificación de determinada pendiente y altitud, se han comparado los valores obtenidos en las localizaciones de la especie (Figura 34.A) con los valores de las localizaciones aleatorias (Figura 34. B), utilizando como método estadístico la t de Student.
 
-### Selección del lugar de nidificación
+### Resultados
+
+#### *Selección del lugar de nidificación*
 
 En el estudio de la selección del lugar de nidificación del águila perdicera en Extremadura, la técnica FDR ha mostrado un resultado de `r nrow(nest_fdr$select)` variables significativas de un total de `r nrow(nest_fdr$select) + nrow(nest_fdr$exclude)` variables disponibles, las cuales han sido incluidas en el modelo de regresión logística por pasos hacia adelante( número de pasos= `r dim(nest_model_long$keep)[2]`)). El modelo final incluye `r length(coef(nest_model)[-1])` variables explicativas (@tbl-nest_coeficientes) con valores de significancia por debajo de 0.05. Los valores de bondad del modelo han indicado la existencia de diferencias significativas (HyL \> 0,05) entre lo observado y lo esperado, de acuerdo a la prueba de Hosmer y Lemeshow (HyL = `r nest_blr$chisq_stat`).
 
@@ -497,8 +647,6 @@ Teniendo en cuenta las zonas con alta favorabilidad (\>0,8) y las zonas con baja
 knitr::include_graphics(file.path(paths$figure_path,"nest_barplot_3.png"))
 
 ```
-
-~~Finalmente, se ha observado una correlación positiva entre la favorabilidad del lugar de nidificación de la especie y la favorabilidad obtenida para la distribución y para el hábitat (Ver apartados *1.3.4. Modelo de distribución espacial de la especie en Extremadura y 5. Selección de Hábitat de la especie en Extremadura*). Dicha correlación ha sido mucho más fuerte con la favorabilidad del hábitat (r~s~=0,474, p \< 0,01; Figura 38) que con la del modelo de distribución (r~s~=0,246, p \< 0,05; Figura 38).~~
 
 ## Escenarios futuros y cambio climático
 
@@ -536,21 +684,21 @@ knitr::include_graphics("01_DATA/INPUT/figures/diagrama_calculo_fav.png")
 
 ```
 
-#### Presencia de la especie
+#### *Presencia de la especie*
 
 La presencia actual de la especie en Extremadura se ha establecido mediante cuadrículas UTM de 10 kilómetros de lado, obteniendo un total de 94 cuadrículas con presencia, de un total de 516, es decir, el 18,22 % del territorio extremeño (Ver metodología 1.2.4. Modelo de distribución espacial de la especie en Extremadura). Esta escala de trabajo es ampliamente utilizada para los estudios de distribución de fauna y su modelización (Araújo et al., 2011; MITECO, 2012), siendo también adecuadas estas unidades para la escala de la información ambiental.
 
-#### Variables ambientales abióticas
+#### *Variables ambientales abióticas*
 
 Como principales variables abióticas se han utilizado variables topográficas, obtenidas a partir del modelo digital del terreno, procedente de la primera cobertura con paso de malla de 25 metros del Instituto Geográfico Nacional (MDT25). A partir de este modelo, se han extraído los valores por cuadrículas UTM (ver Anexo 1) de distintas variables derivadas, todas ellas utilizadas con anterioridad en modelos de distribución de especies mediante favorabilidad (Márquez et al., 2011; Chamorro et al., 2020).
 
-#### Variables climáticas históricas
+#### *Variables climáticas históricas*
 
 Muchas son las fuentes que proporcionan datos climáticos a diferentes escalas (AEMET, Atlas Climático de Extremadura, Atlas Miramon, WorldClim, Chelsa, etc.). Para el presente estudio se han elegido los datos del proyecto WorldClim (Fick y Hijmans, 2017), en su versión 2.1 (WorldClim2), que proporciona cartografía a escala global en formato espacial (Geotiff) de datos climáticos obtenidos a partir de la serie de años comprendidos entre 1970 y 2000, con un paso de malla de 30 segundos de arco en el ecuador (aproximadamente 1 km2). WorldClim2 dispone de datos mensuales de temperaturas mínimas, medias y máximas, precipitación, radiación solar, velocidad del viento y presión de vapor de agua; así como 19 variables bioclimáticas derivadas de las anteriores (Hijmans et al., 2005).
 
-Se han seleccionado todas las variables bioclimáticas disponibles en WorldClim2 (ver Anexo 2) que han sido utilizadas previamente en estudios de distribución de especies (Cauli et al., 2021; Mccabe et al., 2021), y que a su vez, están relacionadas con factores de temperatura y precipitación, que influyen en la presencia o reproducción de la especie de interés (Parellada et al., 1984; Ontiveros y Pleguezuelos, 2003b; Muñoz et al., 2005; López-López et al., 2006).
+Se han seleccionado todas las variables bioclimáticas disponibles en WorldClim2 disponibles en el ANEXO 2 (@tbl-anexo2) que han sido utilizadas previamente en estudios de distribución de especies (Cauli et al., 2021; Mccabe et al., 2021), y que a su vez, están relacionadas con factores de temperatura y precipitación, que influyen en la presencia o reproducción de la especie de interés (Parellada et al., 1984; Ontiveros y Pleguezuelos, 2003b; Muñoz et al., 2005; López-López et al., 2006).
 
-#### Variables climáticas futuras en escenarios de cambio climático
+#### *Variables climáticas futuras en escenarios de cambio climático*
 
 Para las variables climáticas en escenarios futuros de cambio climático, se han utilizado los datos más actuales que presenta WorldClim, correspondientes al proyecto de inter-comparación de modelos de clima acoplados (Coupled Model Intercomparison Project Phase 6, CMIP6) (Eyring et al., 2016), cuya escala de trabajo es de 2,5 minutos de arco (Aproximadamente 5 km). Estos modelos, en comparación con sus antecesores (CMIP5), tienen una mayor sensibilidad, e incluyen nuevas y mejores representaciones de procesos químicos y biológicos. Por ello, pese a la existencia de los CMIP5, que presentan una mayor resolución espacial (30'' -- 1 km), se ha optado por la utilización de los CMIP6, que son los que se han evaluado en el sexto informe del IPCC, y al ser más acordes con la realidad actual, su uso es preferible (IPCC, 2021a).
 
@@ -568,7 +716,7 @@ Al igual que los datos climáticos históricos, los datos los diferentes escenar
 
 Con todo ello, teniendo en cuenta los 8 GCM, cada uno de ellos con cuatro escenarios de emisiones y cuatro escenarios temporales; se han obtenido para cada una de las 19 variables bioclimáticas, un total de 128 capas ráster de los distintos escenarios de cambio climático proyectados (Figura 54).
 
-#### Cálculo de favorabilidad histórica y futura
+#### *Cálculo de favorabilidad histórica y futura*
 
 Para determinar el efecto del cambio climático sobre el águila imperial en Extremadura se ha utilizado la metodología propuesta por Real et al. (2010) para el cálculo de la favorabilidad climática por unidades espaciales. Para ello se ha cuantificado en primer lugar la variación entre un escenario presente, modelado mediante el uso de datos históricos de una serie climática de los últimos años, y un conjunto de escenarios proyectados a futuro, establecidos mediante distintos escenarios temporales de circulación atmosférica o de emisiones. Para el conjunto de los 16 escenarios temporales y de emisiones (SSP) pertenecientes a los respectivos GCM que recogen las distintas fechas y trayectorias posibles, se han calculados los valores promedios por cuadrículas UTM de 10 km. Para ello se ha utilizado el software estadístico R.
 
@@ -576,7 +724,7 @@ A continuación se realizó una preselección de las variables bioclimáticas a 
 
 Los valores de la probabilidad y favorabilidad de presencia de la especie en cada una de las cuadrículas se han obtenido siguiendo la misma metodología explicada en el apartado para el estudio del modelo de distribución (Ver metodología 1.2.4.
 
-#### Modelo de distribución espacial de la especie en Extremadura).
+#### *Modelo de distribución espacial de la especie en Extremadura).*
 
 Para realizar la proyección de los datos a los distintos escenarios de cambio climático, se ha utilizado la ecuación resultante de la regresión logística por pasos hacia delante, sustituyendo los valores de las variables climáticas históricas por las futuras.
 
@@ -634,6 +782,9 @@ knitr::include_graphics(file.path(paths$figure_path,"future_prediction_2.png"))
 # ANEXO 1. RELACIÓN DE VARIABLES UTILIZADAS EN LOS MODELOS DE DISTRIBUCIÓN DEL ÁGUILA IMPERIAL A DIFERENTES ESCALAS
 
 ```{r}
+#| label: tbl-anexo1
+#| tbl-cap: "(1) Modelo Digital del Terreno 1ª Cobertura con paso de malla de 25 m - Instituto Geográfico Nacional (2) Ninyerola M, Pons X y Roure JM. 2005. Atlas Climático Digital de la Península Ibérica. Metodología y aplicaciones en bioclimatología y geobotánica. ISBN 932860-8-7. Universidad Autónoma de Barcelona, Bellaterra. (3) Atlas climático de Extremadura 1987-1994 - Grupo de Investigación en la Biología de la Conservación. (4) LandScanTM 2019 - Oak Ridge National Laboratory (5) Entidades de Población 2014 - CC-BY 4.0 CICTEX, Junta de Extremadura (6) Base Topográfica Nacional a escala 1:25.000. - Instituto Geográfico Nacional (7) CORINE Land Cover – Agencia Europea del Medio Ambiente (8) Mapa Forestal de España 1:25.000 (2018) - MITERD. Dirección General de Biodiversidad, Bosques y Desertificación (9) Modelo Digital de Superficies Vegetación- MDSnV2,5 - Instituto Geográfico Nacional (10) Censos Ganaderos por Municipios. Ovino, vacuno y porcino 2019. Caprino 2019. – Dirección General de Medio Ambiente. Junta de Extremadura. (11) Plan General de Caza de Extremadura 2016. - Servicio de Caza y Pesca. Consejería de Agricultura, Desarrollo Rural, Población y Territorio. Junta de Extremadura (12) Sistema de Información Territorial de Extremadura (SITEX)"
+#| tbl-cap-location: bottom
 
 metadata <- readr::read_delim(file = "01_DATA/OUTPUT/metadata_predictors.csv")
 
@@ -656,14 +807,18 @@ colformat_double(
   bg(i=which(tabla_variables$Tipología =="USOS DEL SUELO"),  part = "body", bg =  "#FBE4D5") %>%
   bg(i=which(tabla_variables$Tipología =="VEGETACIÓN"),  part = "body", bg =  "#FBE4D5") %>%
   bg(i=which(tabla_variables$Tipología =="LITOLOGÍA"),  part = "body", bg =  "#FBE4D5") %>%
-  flextable::width(width=0.9)  %>%
-  set_table_properties(layout = "autofit")  %>% border_outer()
+  flextable::width(width=2.15, unit="cm")  %>%
+  set_table_properties(layout = "fixed")  %>% border_outer()
 
 ```
 
 # ANEXO 2. RELACIÓN DE VARIABLES UTILIZADAS EN EL MODELO DE DISTRIBUCIÓN DEL ÁGUILA IMPERIAL EN FUNCIÓN DEL CAMBIO CLIMÁTICO
 
 ```{r}
+#| label: tbl-anexo2
+#| tbl-cap: "(1)	Modelo Digital del Terreno 1ª Cobertura con paso de malla de 25 m - Instituto Geográfico Nacional (2)	Fick, S.E. and R.J. Hijmans, 2017. WorldClim 2: new 1km spatial resolution climate surfaces for global land areas. International Journal of Climatology 37 (12): 4302-4315. Exclusión: Proceso de exclusión de la variable mediante (a) análisis FDR y (b) regresión por pasos hacia delante." 
+#| tbl-cap-location: bottom
+
 
 var_bioclim <- readr::read_delim(file = "01_DATA/OUTPUT/variables_bioclimaticas.csv",locale = locale(encoding = "windows-1252"))
 
@@ -676,8 +831,8 @@ colformat_double(
   bg(bg = "#F7CAAC", part = "header") %>%
   fontsize(size = 10,part = "header") %>%
   fontsize(size = 8,part = "body") %>%
- flextable::width(width=0.9)  %>%
-  set_table_properties(layout = "autofit")  %>% border_outer()
+ flextable::width(width=3.75,  unit = "cm")  %>%
+  set_table_properties(layout = "fixed")  %>% border_outer()
 
 
 ```

@@ -71,5 +71,7 @@ quarto_render_move <- function(
 source("02_SCRIPTS/02_selected_glm.R")
 source("02_SCRIPTS/03_bioclim_glm.R")
 source("02_SCRIPTS/05_nest_analysis.R")
+source("02_SCRIPTS/06_habitat_analysis.R")
+
 
 quarto_render_move(input = "informe_aquila_adalberti.qmd", output_dir = paths$report_path, output_file = paste0("aquila_adalberti_", model_name, ".docx"))
