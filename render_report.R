@@ -4,6 +4,7 @@
 
 library(yaml)
 library(here)
+
 here::i_am('Aquila_adalberti_SDM.Rproj')
 
 source("02_SCRIPTS/functions.R")
@@ -14,6 +15,9 @@ model_name <- config$configuration$folder_name
 
 paths <- create_folder(folder_name = config$configuration$folder_name) # create folder for saving output
 
+##################################################
+## Section: functions 
+##################################################
 
 #' `quarto::quarto_render()`, but output file is moved to `output_dir`
 #'
@@ -68,10 +72,18 @@ quarto_render_move <- function(
   }
 }
 
+##################################################
+## Section: source scripts
+##################################################
+
 source("02_SCRIPTS/02_selected_glm.R")
 source("02_SCRIPTS/03_bioclim_glm.R")
 source("02_SCRIPTS/05_nest_analysis.R")
 source("02_SCRIPTS/06_habitat_analysis.R")
 
+
+##################################################
+## Section: Render report
+##################################################
 
 quarto_render_move(input = "informe_aquila_adalberti.qmd", output_dir = paths$report_path, output_file = paste0("aquila_adalberti_", model_name, ".docx"))

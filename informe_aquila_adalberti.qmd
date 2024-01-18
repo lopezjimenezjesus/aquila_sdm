@@ -20,6 +20,7 @@ library(here)
 library(stringr)
 library(fuzzySim)
 library(patchwork)
+library(readxl)
 
 here::i_am("Aquila_adalberti_SDM.Rproj")
 
@@ -53,37 +54,44 @@ set_flextable_defaults(
 ## Section: model
 ##################################################
 
+obs <- read_excel(path = here::here('01_DATA/INPUT/Presencia_Imperial_CUTM10.xlsx'), sheet = "Presencia") %>% dplyr::select(AQUADA)
 
 if(config$configuration$model_trimmed) {
   
   model.glm <- readRDS(file.path(paths$model_path, 'glm_model.rds'))
-  r2 <- unlist(fav_step_models(model.glm)[[2]])
+  model.glm.predictions <- readRDS(file.path(paths$model_path, 'glm_model_predictions.rds'))
+  r2 <- unlist(fav_step_models(model.glm$predictions, obs=obs)[[2]])
     
   step_first_value_above <- which(r2>=0.75)[1]
   r2_first_value_above <- r2[which(r2>=0.75)][1]
    
-  model_optimal <- model.glm[["keep"]][["model", step_first_value_above]]
+  # model_optimal <- model.glm[["keep"]][["model", step_first_value_above]]
+  model_optimal <- model.glm.predictions[step_first_value_above]
   
-  model_optimal_c <- coefficients(model_optimal)[-1]
+  # model_optimal_c <- coefficients(model_optimal)[-1]
+  model_optimal_c <- model.glm$steps$variable[1:step_first_value_above]
   
-  f <- Fav(model.glm)
-  f_o <- Fav(model_optimal)
+  f <- Fav(model.glm$model)
+  f_o <- Fav(pred=model_optimal, obs=obs)
 
   model.glm <- readRDS(file.path(paths$model_path, 'glm_model_trimmed.rds'))
 } else {
   model.glm <- readRDS(file.path(paths$model_path,
                                  config$configuration$folder_name, 'glm_model.rds'))
-  r2 <- unlist(fav_step_models(model.glm)[[2]])
+  model.glm.predictions <- readRDS(file.path(paths$model_path, 'glm_model_trimmed_predictions.rds'))
+
+  r2 <- unlist(fav_step_models(model.glm.predictions, obs=obs)[[2]])
     
   step_first_value_above <- which(r2>=0.75)[1]
   r2_first_value_above <- r2[which(r2>=0.75)][1]
    
-  model_optimal <- model.glm[["keep"]][["model", step_first_value_above]]
+  model_optimal <- model.glm.predictions[step_first_value_above]
   
-  model_optimal_c <- coefficients(model_optimal)[-1]
+  model_optimal_c <- model.glm$steps$variable[1:step_first_value_above]
 
-  f <- Fav(model.glm)
-  f_o <- Fav(model_optimal)
+  f <- Fav(model.glm$model)
+    f_o <- Fav(pred=model_optimal, obs=obs)
+
   
 }
 
@@ -481,7 +489,7 @@ knitr::include_graphics(file.path(paths$figure_path,'fav_historical_model_c3_10.
 # ![Resultados de las correlaciones de Pearson de la favorabilidad de cada paso de la regresión con el resultado final de favorabilidad del águila imperial.](%60r%20file.path(paths$figure_path,%22intermediate_models_fav.png%22)%60){#fig-fav_inter}
 ```
 
-Durante el proceso de selección de variables por pasos hacia delante, el paso `r step_first_value_above` muestra un ajuste del modelo óptimo (R2 = `r round(r2_first_value_above,2)` ; @fig-fav_inter), de manera que la favorabilidad total del modelo final ha sido explicada por las `r length(model_optimal_c)` primeras variables (`r paste(names(model_optimal_c), collapse = ", ")`). En este paso, se han obtenido `r sum(Fav(model_optimal) > 0.8)` cuadrículas con favorabilidad alta (\> 0,8), que suponen el `r p_cuadriculas_optimas` % de las obtenidas en el último paso; y `r sum(Fav(model_optimal) < 0.2)` cuadrículas con valores desfavorables (\< 0,2), que conforman el `r p_cuadriculas_desf` % del total.
+Durante el proceso de selección de variables por pasos hacia delante, el paso `r step_first_value_above` muestra un ajuste del modelo óptimo (R2 = `r round(r2_first_value_above,2)` ; @fig-fav_inter), de manera que la favorabilidad total del modelo final ha sido explicada por las `r length(model_optimal_c)` primeras variables (`r paste((model_optimal_c), collapse = ", ")`). En este paso, se han obtenido `r sum(f_o > 0.8)` cuadrículas con favorabilidad alta (\> 0,8), que suponen el `r p_cuadriculas_optimas` % de las obtenidas en el último paso; y `r sum(f_o < 0.2)` cuadrículas con valores desfavorables (\< 0,2), que conforman el `r p_cuadriculas_desf` % del total.
 
 ```{r  label = fig-fav_inter, echo = FALSE, fig.cap = "Resultados de las correlaciones de Pearson de la favorabilidad de cada paso de la regresión con el resultado final de favorabilidad del águila imperial", out.width = '100%', fig.align='center'}
 knitr::include_graphics(file.path(paths$figure_path,'intermediate_models_fav.png'))

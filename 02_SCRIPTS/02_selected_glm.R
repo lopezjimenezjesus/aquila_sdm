@@ -102,31 +102,47 @@ variables_to_model <- paste(rownames(xy.fdr$select)[1:length(rownames(xy.fdr$sel
 ##################################################
 
 
-null.model <- glm(AQUADA ~ 1, data=xy, family = binomial)
+# null.model <- glm(AQUADA ~ 1, data=xy, family = binomial)
+# 
+# model.glm <- step(null.model, direction='forward',
+#                   keep =  function(model, aic) list(model = model, aic = aic),
+#                   scope = paste0("~", variables_to_model))
+# 
+# summary(model.glm)
 
-model.glm <- step(null.model, direction='forward',
-                  keep =  function(model, aic) list(model = model, aic = aic),
-                  scope = paste0("~", variables_to_model))
+variables_to_model_vector <- str_trim(as.vector(str_split(string = variables_to_model, pattern = "\\+", simplify = TRUE)))
 
-summary(model.glm)
+xy_selection <- xy %>% dplyr::select(all_of(variables_to_model_vector), "AQUADA")
+
+# foo <- glm(AQUADA ~ Ciervo + QUESUR + Cul_het + DenCap18 + QFAGPY + NumPoblaD + LongCarrD + EUCSPP + Arroz + DistPobla + LongElectD + CASSAT + Jabali + Conejo, data=foox, family = binomial)
+# 
+# 
+# fooo <- modelTrim(foo)
+
+
+model.glm  <- fuzzySim::stepwise(xy_selection, length(xy_selection), 1:(length(xy_selection) -1), family = binomial(link="logit"), 
+                           simplif=FALSE, direction="forward", trace=2,preds=TRUE, Favourability=FALSE,Wald=TRUE)
+
 
 
 ## Trimmed model
 ##################################################
 
-model.glm.trimmed <- modelTrim(model.glm)
+model.glm.trimmed <- modelTrim(model.glm$model) # not necessary but ok to avoid further modification of script due to changes on modelling strategy (see above)
 
 saveRDS(model.glm.trimmed, file= file.path(paths$model_path, 'glm_model_trimmed.rds'))
+saveRDS(model.glm.trimmed$predictions, file=file.path(paths$model_path, "glm_model_predictions.rds"))
 
 
 # Names of our variables:
 
-pred <- names(coefficients(model.glm)[2:length(coefficients(model.glm))])
+pred <- names(coefficients(model.glm$model)[2:length(coefficients(model.glm$model))])
 
 
 ## save metadata
 
 saveRDS(model.glm, file=file.path(paths$model_path, "glm_model.rds"))
+saveRDS(model.glm$predictions, file=file.path(paths$model_path, "glm_model_predictions.rds"))
 
 
 ##################################################
@@ -168,13 +184,21 @@ ggsave(filename =  file.path(paths$figure_path, 'fav_historical_model_c3_10.png'
 ## Plot intermediate models 
 ##################################################
 
-fav_list <- fav_step_models(model.glm) # use model not trimmed for exploring intermediate steps
+# fav_list <- fav_step_models(model.glm) # use model not trimmed for exploring intermediate steps
+
+# fav_list <- fav_step_models(model.glm)
+fav_list <- fav_step_models(model.glm$predictions, obs=xy_selection$AQUADA) # use model not trimmed for exploring intermediate steps
+
+
+# fav_list <- lapply(X = as.list(model.glm$predictions),FUN = function(x) Fav(obs=xy_selection$AQUADA, pred=x ))
+
+
 fav_plots <- plot_fav_step_models(fav_list)
 
 fav_plots <-  do.call("grid.arrange", c(fav_plots, ncol=3))
 
 ggsave(filename = file.path(paths$figure_path, 'intermediate_models_fav.png'), 
-       plot = fav_plots, dpi = "retina", width = 210, height = 297, units = "mm")
+       plot = fav_plots, dpi = "retina")
 
 ggsave(filename =  file.path(paths$figure_path, 'intermediate_models_fav.svg'), 
        plot = fav_plots, dpi = "retina", width = 210, height = 297, units = "mm")
@@ -249,6 +273,7 @@ knitr::kable(BAAn, col.names = c("Factores ambientales Bióticos",
 ## Coefficients ----
 ##################################################
 
+# tidy_coef <- round(summaryWald(model.glm.trimmed),3) # this is the proper way...but keep function below..lazy
 
 tidy_coef <- build_coef_table(model.glm.trimmed)
 
@@ -257,8 +282,21 @@ write_rds(tidy_coef, file = file.path(paths$model_path, "tabla_coef.rds"))
 ## Confussion matrix  ----
 ##################################################
 
-crosspred_glm <- mecofun::crossvalSDM(model.glm.trimmed, traindat= xy,
-                                      colname_pred=colnames(xy)[1:(dim(xy)[2]-1)], 
+# just temp... need to calculate model using well know function because of bug on fuzzy package (stepwise)
+
+null.model_2 <- glm(AQUADA ~ 1, data=xy, family = binomial)
+
+model.glm_2 <- step(null.model_2, direction='forward',
+                  keep =  function(model, aic) list(model = model, aic = aic),
+                  scope = paste0("~", variables_to_model))
+
+
+
+model.glm.trimmed_2 <- modelTrim(model.glm_2 )
+
+
+crosspred_glm <- mecofun::crossvalSDM(model=model.glm.trimmed_2, traindat= as.data.frame(xy),
+                                      colname_pred=names(coef(model.glm.trimmed))[2:length(coef(model.glm.trimmed))] , 
                                       colname_species = "AQUADA", kfold= 10)
 
 evalsdm <-  mecofun::evalSDM(xy$AQUADA, crosspred_glm)

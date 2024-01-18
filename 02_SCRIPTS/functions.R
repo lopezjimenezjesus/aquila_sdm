@@ -28,22 +28,73 @@ filter_predictors_by_type_analysis <- function(type_analisys="A_Paisaje", name_o
 #   return(l_R2)
 # }
 
-fav_step_models <- function(model) {
+# fav_step_models <- function(model) {
+#   # Save intermediate glm models in a list
+#   n_models <- dim(model[["keep"]])[2]
+#   l <- list()
+#   R2 <- list()
+#   for(i in seq(1:n_models)) {
+#     l[[i]] <- Fav(model[["keep"]][["model", i]])
+#     R2[[i]] <- summary(lm(Fav(model) ~ Fav(model$keep[,i]$model)))$adj.r.squared
+# 
+#   }
+#   
+#   l_R2 <- list(l, R2)
+#   
+#   return(l_R2)
+# }
+# 
+# 
+# 
+# 
+# 
+# plot_fav_step_models <- function(fav_R2_list) {
+#   # Save favourability ggplot from intermediate models in a list
+#   n_fav <-length(fav_R2_list[[1]])
+#   p <- list()
+#   for(i in seq(1:n_fav)) {
+#     fav <- fav_R2_list[[1]][[i]]
+#     aq <- data.frame(CUADRICULA=x$CUADRICULA, sp=xy$AQUADA, f=fav)
+#     
+#     aq.sf <- inner_join(utm10, aq, by="CUADRICULA")
+#     
+#     aq.sf$category <- cut(aq.sf$f, breaks=c(-Inf, 0.2, 0.8, Inf), labels=c("low","middle","high"))
+#     
+#     p[[i]] <- ggplot(data=aq.sf) +
+#       geom_sf(aes(fill=category)) +
+#       scale_fill_manual(values = c("low" = "red", "middle" = "yellow", "high" = "green")) +
+#       # geom_sf(data=st_centroid(aq.sf) %>% dplyr::filter(sp==1)) +
+#       annotate(geom = "text", x = 316696.7, y = 4240000, 
+#                label = paste("Paso: ", i, "\n", "R2=", round(fav_R2_list[[2]][[i]],3)),
+#                color = "black", size = 2) +
+#       guides(fill="none") +
+#       theme_void()
+#     
+#   }
+#   return(p)
+# }
+
+
+
+fav_step_models <- function(prediction_dataset, obs) {
   # Save intermediate glm models in a list
-  n_models <- dim(model[["keep"]])[2]
+  
+  obs <- obs
+
+  n_models <- length(prediction_dataset)
   l <- list()
   R2 <- list()
+  fav_last_step <- Fav(pred=prediction_dataset[n_models],obs=obs)
   for(i in seq(1:n_models)) {
-    l[[i]] <- Fav(model[["keep"]][["model", i]])
-    R2[[i]] <- summary(lm(Fav(model) ~ Fav(model$keep[,i]$model)))$adj.r.squared
-
+    l[[i]] <- Fav(obs=obs, pred=prediction_dataset[i])
+    R2[[i]] <- summary(lm(fav_last_step ~ l[[i]]))$adj.r.squared
+    
   }
   
   l_R2 <- list(l, R2)
   
   return(l_R2)
 }
-
 
 
 
