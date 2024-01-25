@@ -77,6 +77,9 @@ paths <- create_folder(folder_name = config$configuration$folder_name) # create 
 ## Collinearity: VIF
 ##################################################
 
+xy.nosf <- xy %>% st_drop_geometry()
+
+
 #https://quantifyinghealth.com/vif-threshold/
 
 mult1 <- multicol(subset(xy, select = 1:(ncol(xy)-1)))  # especificar las columnas con variables!
@@ -306,7 +309,7 @@ evalsdm <-  mecofun::evalSDM(xy$AQUADA, crosspred_glm)
 
 # using fav instead model
 
-tm <- threshMeasures(pred = Fav((model.glm.trimmed)), obs=xy$AQUADA, ylim = c(0, 1), thresh = 0.5)
+tm <- threshMeasures(pred = Fav((model.glm.trimmed_2)), obs=xy$AQUADA, ylim = c(0, 1), thresh = 0.5)
 
 
 

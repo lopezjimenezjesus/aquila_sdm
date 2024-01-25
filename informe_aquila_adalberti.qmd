@@ -21,6 +21,7 @@ library(stringr)
 library(fuzzySim)
 library(patchwork)
 library(readxl)
+library(officer)
 
 here::i_am("Aquila_adalberti_SDM.Rproj")
 
@@ -336,6 +337,15 @@ habitat_n_fav_intermedia <- sum(fav_habitat >= 0.2 &fav_habitat <= 0.8)
 
 ```
 
+```{r}
+
+
+
+cells_in_each_category <- read_rds(file = file.path(paths$model_path, "cells_in_each_category.rds"))
+
+
+```
+
 # ÁGUILA IMPERIAL (Aquila adalberti) - LA ESPECIE EN EXTREMADURA
 
 ## Distribución espacial de la especie en Extremadura
@@ -462,7 +472,7 @@ colformat_double(
    flextable::width(width=0.9)  %>% border_outer() 
 ```
 
-A partir de la matriz de confusión (@tbl-confusion), definida para el umbral de favorabilidad de 0.5, se observa que del total de presencias de la especie, el `r desfav_presencia` % se corresponden con zonas desfavorables, frente al `r fav_presencia` % que se encuentran en zonas favorables. De igual forma, el `r percent_desfavorable` % de las cuadrículas del territorio de Extremadura son desfavorables para la especie, al no encontrarse presente la misma.
+A partir de la matriz de confusión (@tbl-confusion), definida para el umbral de favorabilidad de 0.5, se observa que del total de presencias de la especie, el `r desfav_presencia`% se corresponden con zonas desfavorables, frente al `r fav_presencia`% que se encuentran en zonas favorables. De igual forma, el `r percent_desfavorable` % de las cuadrículas del territorio de Extremadura son desfavorables para la especie, al no encontrarse presente la misma.
 
 ```{r}
 #| label: tbl-confusion
@@ -483,7 +493,7 @@ colformat_double(
 
 Los resultados han mostrado varios núcleos razonablemente bien delimitados de alta favorabilidad, especialmente al norte de Badajoz, incluyendo la provincia de Alburquerque , la Sierra de San Pedro y zonas cercanas al embalse de Alcántara. En el cuadrante noroccidental destaca las sierras de Monfragüe y hacia el sur ciertos núcleos aislados cercanos al embalse de Cijara . También se obtienen zonas de alta favorabilidad en las estribaciones de Sierra Morena y en una franja que se extiende a lo largo de cota superior de la comarca de la Campiña, Tierra de Barros y Alange (@fig-fav). Considerando la favorabilidad clasificada en tres categorías (@fig-fav), se obtienen un total de `r fav_alta` cuadrículas con zonas de alta favorabilidad para la especie (\> 0,8), `r fav_media` cuadrículas de favorabilidad intermedia (0,2-0,8) y `r fav_baja` cuadrículas de baja favorabilidad (\< 0,2).
 
-```{r  label = fig-fav, echo = FALSE, fig.cap = "Resultados de favorabilidad para el águila perdicera. (A) 10 clases con pasos regulares de 0,1; (B) zonas desfavorables en color rojo (< 0,2), zonas intermedias en color amarillo (0,2 – 0,8) y zonas favorables en color verde (> 0,8).", out.width = '100%', fig.align='center'}
+```{r  label = fig-fav, echo = FALSE, fig.cap = "Resultados de favorabilidad para el águila imperial (A) 10 clases con pasos regulares de 0,1; (B) zonas desfavorables en color rojo (< 0,2), zonas intermedias en color amarillo (0,2 – 0,8) y zonas favorables en color verde (> 0,8).", out.width = '100%', fig.align='center'}
 knitr::include_graphics(file.path(paths$figure_path,'fav_historical_model_c3_10.png'))
 
 # ![Resultados de las correlaciones de Pearson de la favorabilidad de cada paso de la regresión con el resultado final de favorabilidad del águila imperial.](%60r%20file.path(paths$figure_path,%22intermediate_models_fav.png%22)%60){#fig-fav_inter}
@@ -548,7 +558,7 @@ La palabra "hábitat" hace referencia al conjunto de factores ambientales físic
 
 #### *Selección de hábitat de la especie en Extremadura*
 
-Para determinar los lugares de nidificación exactos, se han utilizado los datos de distribución de plataformas de nidificación. Para estudiar el hábitat de la especie en la comunidad se han creado "buffers" para cada una de las ubicaciones seleccionadas, de un radio de 2,5 km. El radio se ha estimado con base en datos de estudios previos de seguimiento de ejemplares marcados con transmisores GPS (Martínez-Miranzo et al., 2016; Perona et al., 2019); tomando como dato base la superficie que englobaría el área de uso activo, donde los individuos pasan la mayoría del tiempo, realizando actividades de alimentación o de descanso (Densidad de Kernel del 75 %; Bosch et al., 2010; Martínez-Miranzo et al., 2016; Perona et al., 2019). El buffer de 2.500 m se ha aplicado a todas aquellas ubicaciones de plataforma/nido que fueron utilizadas (PS, PP) u ocupadas (TO) por parejas en el periodo 2017-2019. Para aquellas parejas que ocuparon más de una plataforma durante este periodo, pero que se entiende que hacen uso año tras año de los mismos recursos de su territorio (Bosch et al., 2010), se ha obtenido el valor promedio de las coordenadas UTM de las plataformas utilizadas (Figura 25.A). En el caso de los territorios ocupados (TO) se ha utilizado el valor promedio de las coordenadas de todas las plataformas existentes en su territorio, con el fin de no aumentar el peso en el modelo de las parejas con más de una plataforma (Tabla 11). Los estudios de selección de hábitat requieren de la comparación de las áreas de presencia de la especie con una selección de áreas aleatorias (ausencias) repartidas por toda el área de estudio, en proporción 1:2 (Morán-López et al., 2006). Para establecer las localizaciones de ausencia de la especie, se han creado 212 puntos aleatorios y su respectiva área buffer de 2.500 m (Figura 25.B), separados una distancia mínima de 5.000 m entre ellos, evitando la localización de su centroide en los grandes embales de Extremadura y no pudiendo ser sus áreas coincidentes con ningún área de nidificación existente.
+Para determinar los lugares de nidificación exactos, se han utilizado los datos de distribución de plataformas de nidificación. Para estudiar el hábitat de la especie en la comunidad se han creado "buffers" para cada una de las ubicaciones seleccionadas, de un radio de 2,5 km. ~~El radio se ha estimado con base en datos de estudios previos de seguimiento de ejemplares marcados con transmisores GPS (Martínez-Miranzo et al., 2016; Perona et al., 2019); tomando como dato base la superficie que englobaría el área de uso activo, donde los individuos pasan la mayoría del tiempo, realizando actividades de alimentación o de descanso (Densidad de Kernel del 75 %; Bosch et al., 2010; Martínez-Miranzo et al., 2016; Perona et al., 2019).~~ El buffer de 2.500 m se ha aplicado a todas aquellas ubicaciones de plataforma/nido que fueron utilizadas (PS, PP) u ocupadas (TO) por parejas en el periodo 2017-2019. Para aquellas parejas que ocuparon más de una plataforma durante este periodo, pero que se entiende que hacen uso año tras año de los mismos recursos de su territorio (Bosch et al., 2010), se ha obtenido el valor promedio de las coordenadas UTM de las plataformas utilizadas (Figura 25.A). En el caso de los territorios ocupados (TO) se ha utilizado el valor promedio de las coordenadas de todas las plataformas existentes en su territorio, con el fin de no aumentar el peso en el modelo de las parejas con más de una plataforma (Tabla 11). Los estudios de selección de hábitat requieren de la comparación de las áreas de presencia de la especie con una selección de áreas aleatorias (ausencias) repartidas por toda el área de estudio, en proporción 1:2 (Morán-López et al., 2006). Para establecer las localizaciones de ausencia de la especie, se han creado 212 puntos aleatorios y su respectiva área buffer de 2.500 m (Figura 25.B), separados una distancia mínima de 5.000 m entre ellos, evitando la localización de su centroide en los grandes embales de Extremadura y no pudiendo ser sus áreas coincidentes con ningún área de nidificación existente.
 
 La selección del hábitat de la especie puede estar influenciada por distintos factores, definidos por una serie de variables explicativas (Anexo 1). Se han calculado para una selección de dichas variables explicativas los datos medios por hábitat circular de 2.500 m de radio, mediante las herramientas de estadística zonal de *ArcGis 10.1*. Los cálculos y tratamientos estadísticos de estos datos se han realizado mediante el software estadístico R.
 
@@ -577,7 +587,7 @@ colformat_double(
 
 Los resultados de favorabilidad del hábitat de las localizaciones de las parejas activas (@fig-habitat_barplot3), han mostrado que el `r habitat_percent_fav_alta_2`% se localizan en el rango más alto de favorabilidad, encontrando tan solo `r habitat_n_fav_baja_2` pareja en la categoría de hábitat más desfavorable.
 
-```{r  label = fig-habitat_barplot10, echo = FALSE, fig.cap = "Frecuencias del número de localizaciones de territorios regentados (PS+PP+TO) (n = 83) del águila perdicera en 10 clases con pasos regulares de 0,1.", out.width = '100%'}
+```{r  label = fig-habitat_barplot10, echo = FALSE, fig.cap = "Frecuencias del número de localizaciones de territorios regentados (PS+PP+TO) (n = 83) del águila imperial en 10 clases con pasos regulares de 0,1.", out.width = '100%'}
 
 knitr::include_graphics(file.path(paths$figure_path,"habitat_barplot_10.png"))
 
@@ -585,7 +595,7 @@ knitr::include_graphics(file.path(paths$figure_path,"habitat_barplot_10.png"))
 
 Teniendo en cuenta las zonas con alta favorabilidad (\>0,8) y las zonas con baja favorabilidad (\<0,2) (@fig-habitat_barplot3), se puede observar como el `r round(habitat_percent_fav_alta,2)` % de las plataformas activas se encuentran en zonas de alta favorabilidad, mientras que el `r habitat_percent_fav_baja` % de las localizaciones (`r habitat_n_fav_baja`) presentan una favorabilidad baja. El `r round(100 - habitat_percent_fav_baja - habitat_percent_fav_alta, 2)` % restante corresponde al número de plataformas activas (`r habitat_n_fav_intermedia` plataformas) que tienen una favorabilidad del área de nidificación intermedia.
 
-```{r  label = fig-habitat_barplot3, echo = FALSE, fig.cap = "Frecuencias del número de localizaciones de territorios regentados (PS+PP+TO) (n = 83) del águila perdicera en 3 clases con pasos regulares de 0,1.", out.width = '100%'}
+```{r  label = fig-habitat_barplot3, echo = FALSE, fig.cap = "Frecuencias del número de localizaciones de territorios regentados (PS+PP+TO) (n = 83) del águila imperial en 3 clases con pasos regulares de 0,1.", out.width = '100%'}
 
 knitr::include_graphics(file.path(paths$figure_path,"habitat_barplot_3.png"))
 ```
@@ -622,7 +632,7 @@ Para constatar la selección activa de lugares de nidificación de determinada p
 
 #### *Selección del lugar de nidificación*
 
-En el estudio de la selección del lugar de nidificación del águila perdicera en Extremadura, la técnica FDR ha mostrado un resultado de `r nrow(nest_fdr$select)` variables significativas de un total de `r nrow(nest_fdr$select) + nrow(nest_fdr$exclude)` variables disponibles, las cuales han sido incluidas en el modelo de regresión logística por pasos hacia adelante( número de pasos= `r dim(nest_model_long$keep)[2]`)). El modelo final incluye `r length(coef(nest_model)[-1])` variables explicativas (@tbl-nest_coeficientes) con valores de significancia por debajo de 0.05. Los valores de bondad del modelo han indicado la existencia de diferencias significativas (HyL \> 0,05) entre lo observado y lo esperado, de acuerdo a la prueba de Hosmer y Lemeshow (HyL = `r nest_blr$chisq_stat`).
+En el estudio de la selección del lugar de nidificación del águila imperial en Extremadura, la técnica FDR ha mostrado un resultado de `r nrow(nest_fdr$select)` variables significativas de un total de `r nrow(nest_fdr$select) + nrow(nest_fdr$exclude)` variables disponibles, las cuales han sido incluidas en el modelo de regresión logística por pasos hacia adelante( número de pasos= `r dim(nest_model_long$keep)[2]`)). El modelo final incluye `r length(coef(nest_model)[-1])` variables explicativas (@tbl-nest_coeficientes) con valores de significancia por debajo de 0.05. Los valores de bondad del modelo han indicado la existencia de diferencias significativas (HyL \> 0,05) entre lo observado y lo esperado, de acuerdo a la prueba de Hosmer y Lemeshow (HyL = `r nest_blr$chisq_stat`).
 
 ```{r}
 #| label: tbl-nest_coeficientes
@@ -708,9 +718,9 @@ Se han seleccionado todas las variables bioclimáticas disponibles en WorldClim2
 
 #### *Variables climáticas futuras en escenarios de cambio climático*
 
-Para las variables climáticas en escenarios futuros de cambio climático, se han utilizado los datos más actuales que presenta WorldClim, correspondientes al proyecto de inter-comparación de modelos de clima acoplados (Coupled Model Intercomparison Project Phase 6, CMIP6) (Eyring et al., 2016), cuya escala de trabajo es de 2,5 minutos de arco (Aproximadamente 5 km). Estos modelos, en comparación con sus antecesores (CMIP5), tienen una mayor sensibilidad, e incluyen nuevas y mejores representaciones de procesos químicos y biológicos. Por ello, pese a la existencia de los CMIP5, que presentan una mayor resolución espacial (30'' -- 1 km), se ha optado por la utilización de los CMIP6, que son los que se han evaluado en el sexto informe del IPCC, y al ser más acordes con la realidad actual, su uso es preferible (IPCC, 2021a).
+Para las variables climáticas en escenarios futuros de cambio climático, se han utilizado los datos más actuales que presenta WorldClim, correspondientes al proyecto de inter-comparación de modelos de clima acoplados (Coupled Model Intercomparison Project Phase 6, CMIP6) (Eyring et al., 2016), cuya escala de trabajo es de 2,5 minutos de arco (Aproximadamente 5 km). Estos modelos, en comparación con sus antecesores (CMIP5), tienen una mayor sensibilidad, e incluyen nuevas y mejores representaciones de procesos químicos y biológicos.
 
-En el CMIP6, se establecen hasta cuatro de los cinco escenarios de emisión desarrollados por el IPCC en su sexto informe (IPCC, 2021a): SSP1-2.6, SSP2-4.5, SSP3-7.0 y SSP5-8.5. Para todos ellos, se han utilizado los diferentes modelos climáticos de circulación atmosférica global (Global Climate Models, GCM) disponibles en la base de datos de WorldClim (Figura 54), basados en leyes físicas de la atmosfera y en la parametrización de procesos, tales como: movimientos de las masas de aire, formación de la nubosidad y efectos del océano, entre otros factores. Para mantener la homogeneidad de los datos, se ha desestimado la utilización de los datos del GCM GFDL-ESM4 provenientes del Geophysical Fluid Dynamics Laboratory, que no están disponibles para los escenarios SSPP2-4.5 y SSP5-8.5.
+En el CMIP6, se establecen hasta cuatro de los cinco escenarios de emisión desarrollados por el IPCC en su sexto informe (IPCC, 2021a): SSP1-2.6, SSP2-4.5, SSP3-7.0 y SSP5-8.5. Para todos ellos, se han utilizado los principales modelos climáticos de circulación atmosférica global (Global Climate Models, GCM) disponibles en la base de datos de WorldClim (Figura 54), basados en leyes físicas de la atmósfera y en la parametrización de procesos, tales como: movimientos de las masas de aire, formación de la nubosidad y efectos del océano, entre otros factores. Para mantener la homogeneidad de los datos, se ha desestimado la utilización de los datos del GCM GFDL-ESM4 provenientes del Geophysical Fluid Dynamics Laboratory, que no están disponibles para los escenarios SSPP2-4.5 y SSP5-8.5.
 
 ```{r  label = fig-mod_cir, echo = FALSE, fig.cap = "Escenarios de cambio climático establecidos en la base de datos WoldClim2 acordes a los escenarios planteados en el IPPC en su sexto informe.", out.width = '100%'}
 
@@ -744,7 +754,7 @@ $F'=1- 1/(1+〖exp〗^((y'-ln(n1/n0))) )$
 
 También es importante conocer cuál es el peso en el modelo para los factores topográficos respecto a los climáticos (Hothorn et al., 2011). Por ello, se ha realizado una partición de la variación para conocer el peso en el modelo entre estos dos factores de forma individualizada y su combinación (Real et al., 2010).
 
-Finalmente, se ha calculado para cada periodo y sus distintos escenarios de emisiones (SSP), el porcentaje de cuadrículas pertenecientes a las diferentes categorías de favorabilidad, tanto para dos clases (\< 0,5 y \> 0,5), como para tres (baja favorabilidad \< 0,2, favorabilidad media 0,2-0,8 y alta favorabilidad \> 0,8). Siguiendo la metodología de Real et al. (2010), se han calculado una serie de operaciones de lógica difusa para cada periodo y sus distintos SSP, que ayudan a predecir el impacto del cambio climático en la favorabilidad de la especie: el índice de incremento (I), la superposición (O), el mantenimiento (M) y el cambio estimado (S). Valores positivos de I indican un incremento de las áreas favorables, mientras que los negativos, la pérdida neta de estas. Valores altos de O, cercanos a 1, indican que las distribuciones de los valores de favorabilidad futura serán similares a los actuales. M indica el grado en el cuál, valores actuales de favorabilidad persistirán en el futuro, mostrando el valor 1 el mantenimiento completo de las áreas presentes en el futuro. S indica cambios en la favorabilidad, de tal forma que mide la proporción de la favorabilidad presente que se predice que se perderá en el futuro, pero que puede ser compensado con la ganancia de favorabilidad en otras zonas. Los valores de O, M y S varían de 0 a 1. Las fórmulas de las citadas operaciones de lógica difusa se pueden consultar en Real et al. (2010) y Chamorro et al. (2020).
+Finalmente, se ha calculado para cada periodo y sus distintos escenarios de emisiones (SSP), el porcentaje de cuadrículas pertenecientes a las diferentes categorías de favorabilidad, tanto para dos clases (\< 0,5 y \> 0,5), como para tres (baja favorabilidad \< 0,2, favorabilidad media 0,2-0,8 y alta favorabilidad \> 0,8). Siguiendo la metodología de Real et al. (2010), se han calculado una serie de operaciones de lógica difusa para cada periodo y sus distintos SSP, que ayudan a predecir el impacto del cambio climático en la favorabilidad de la especie: el índice de incremento (I), la superposición (O), el mantenimiento (M) y el cambio estimado (S). Valores positivos de I indican un incremento de las áreas favorables, mientras que los negativos, la pérdida neta de estas. Valores altos de O, cercanos a 1, indican que las distribuciones de los valores de favorabilidad futura serán similares a los actuales. M indica el grado en el cuál, valores actuales de favorabilidad persistirán en el futuro, mostrando el valor 1 el mantenimiento completo de las áreas presentes en el futuro. S indica cambios en la favorabilidad, de tal forma que mide la proporción de la favorabilidad presente que se predice que se perderá en el futuro, pero que puede ser compensado con la ganancia de favorabilidad en otras zonas. Los valores de O, M y S varían de 0 a 1. Las fórmulas de las citadas operaciones de lógica difusa se pueden consultar en Real et al. (2010) y Chamorro et al. (2020)..
 
 ### Resultados
 
@@ -780,7 +790,238 @@ historical_cat_2 + historical_cat_3 + plot_annotation(tag_levels = 'A')
 
 ```
 
-En el cómputo global de la favorabilidad para los escenarios futuros, no se aprecia una fuerte tendencia en la distribución de áreas idóneas en uno u otro sentido. Partiendo de una menor favorabilidad para la mayor parte de las combinaciones entre periodos y escenarios, se puede observa un ligero repunte en las zonas de favorabilidad alta en las áreas centrales a lo largo del tiempo y para los escenarios de mayor emisión, mientras que aumentan las zonas de favorabilidad baja en detrimento de las zonas intermedias de favorabilidad. Esta ligera polarización en el territorio se acentúa a lo largo de los periodos contemplados y para los escenarios de mayor impacto. Las zonas de favorabilidad baja aumentan especialmente en el cuadrante suroeste, manteniéndose estables en el tercio norte. Para las zonas de favorabilidad alta, se observa un desplazamiento hacia el noreste con respecto a los resultados históricos, apreciándose una cierta fragmentación en 2 núcleos bien diferenciados y manteniéndose una zona marginal al sur de la región (@fig-future). En conclusión, y teniendo en cuenta la incertidumbre asociada a estos modelos, los resultados sugieren un cierto impacto negativo para la especie con respecto a la distribución actual, si bien aún se mantienen áreas de alta favorabilidad que pueden actuar como refugios en las peores previsiones climáticas.
+En el cómputo global de la favorabilidad para los escenarios futuros, no se aprecia una fuerte tendencia en la distribución de áreas idóneas en uno u otro sentido. Partiendo de una menor favorabilidad para la mayor parte de las combinaciones entre periodos y escenarios, se puede observa un ligero repunte en las zonas de favorabilidad alta en las áreas centrales a lo largo del tiempo y para los escenarios de mayor emisión, mientras que aumentan las zonas de favorabilidad baja en detrimento de las zonas intermedias de favorabilidad. Esta ligera polarización en el territorio se acentúa a lo largo de los periodos contemplados y para los escenarios de mayor impacto. Las zonas de favorabilidad baja aumentan especialmente en el cuadrante suroeste, manteniéndose estables en el tercio norte. Para las zonas de favorabilidad alta, se observa un desplazamiento hacia el noreste con respecto a los resultados históricos, apreciándose una cierta fragmentación en 2 núcleos bien diferenciados y manteniéndose una zona marginal al sur de la región (@fig-future). En conclusión, y teniendo en cuenta la incertidumbre asociada a estos modelos, los resultados sugieren un cierto impacto negativo para la especie con respecto a la distribución actual, si bien aún se mantienen áreas de alta favorabilidad que pueden actuar como refugios en las peores previsiones climáticas (@tbl-trends_cat2).
+
+```{r}
+#| label: tbl-trends_cat2
+#| tbl-cap:  "Porcentaje de cuadrículas en las distintas categorías de favorabilidad climática para cada escenario temporal y de emisión (SSP). (a: favorabilidad < 0,5; b: favorabilidad > 0,5)."
+#| tbl-cap-location: bottom
+
+
+cells_in_each_category_wide <- cells_in_each_category %>% 
+  select(!c(Value, variacion))  %>% 
+   filter(!type=="cat_3") %>%
+   filter(!is.na(percent)) %>%
+  group_by(column_label) %>% 
+  pivot_wider(id_cols=escenario, names_from = c(periodo, category), values_from = percent) 
+
+cells_in_each_category_wide$escenario <- c("SSP1-2,6", "SSP2-4,5", "SSP3-7,0", "SSP5-8,5")
+
+values_h_cat2 <- cells_in_each_category %>% filter(title=="historical", type=="cat_2") %>% pull(Value)
+
+cells_in_each_category_wide$historico_low <-values_h_cat2[1]
+cells_in_each_category_wide$historico_high <-values_h_cat2[2]
+
+cells_in_each_category_wide <- cells_in_each_category_wide %>% select(escenario, historico_low, historico_high, everything())
+
+# 
+# %>%  fill(low, middle, high,  .direction = "updown") %>% 
+#   filter(!type=="cat_3") %>%
+#   distinct() 
+
+
+ft <- flextable(cells_in_each_category_wide) %>%
+bold(part = "header") %>% 
+colformat_double(
+  digits = 1, na_str = "N/A"
+  )  %>%
+  bg(bg = "#F7CAAC", part = "header") %>%
+  bg(i=seq(2,dim(cells_in_each_category_wide)[1],2),  part = "body", bg =  "#FBE4D5") %>%
+   flextable::width(width=1.1)   %>% border_outer() 
+
+ ft <- add_header_row(ft, 
+  values = c("", "2021-2040", "2041-2060", "2061-2080", "2081-2100", "Histórico"), 
+  colwidths = c(1,2,2,2,2,2)) 
+ 
+ ft <-ft %>% align_text_col(align = "center") %>% merge_v(j = c(2, 3)) %>%
+   set_header_labels(ft, values = list(
+    "escenario" = "",
+    "historico_low" = "a",
+    "historico_high" = "b",
+    "2021-2040_low" = "a",
+    "2021-2040_high" = "b",
+    "2041-2060_low" = "a",
+    "2041-2060_high" = "b",
+    "2061-2080_low" = "a",
+    "2061-2080_high" = "b",
+    "2081-2100_low" = "a",
+    "2081-2100_high" = "b"
+
+  ))
+ 
+ft <- ft %>% flextable::border(border = fp_border(color = "orange"), part="body") %>% 
+  flextable::align(align = "center", part = "all")  %>%
+  border_outer() %>% fontsize(size = 8, part = "all") %>%
+  theme_box() 
+
+ft <- autofit(ft)
+
+auto_widths  <- dim(ft)$widths/sum(dim(ft)$widths)
+
+auto_height  <- dim(ft)$height/sum(dim(ft)$height)
+
+
+i = 15 # width of the side borders in the word_document output (in centimeters)
+w = i*0.3937 # width of the side borders in the word_document output (in inches)
+
+ft <- flextable::width(ft,  width=w*auto_widths) %>% flextable::height_all( height = 0.51*w, part = "header", unit = "in") 
+
+ft
+```
+
+
+.
+
+
+```{r}
+#| label: tbl-trends_cat3
+#| tbl-cap:  "Porcentaje de cuadrículas en las distintas categorías de favorabilidad climática para cada escenario temporal y de emisión (SSP). (a: baja favorabilidad < 0,2; b: favorabilidad media 0,2-0,8; c: alta favorabilidad > 0,8)."
+#| tbl-cap-location: bottom
+
+
+cells_in_each_category_wide <- cells_in_each_category %>% 
+  select(!c(Value, variacion))  %>% 
+   filter(!type=="cat_2") %>%
+   filter(!is.na(percent)) %>%
+  group_by(column_label) %>% 
+  pivot_wider(id_cols=escenario, names_from = c(periodo, category), values_from = percent)
+
+cells_in_each_category_wide$escenario <- c("SSP1-2,6", "SSP2-4,5", "SSP3-7,0", "SSP5-8,5")
+
+values_h_cat3 <- cells_in_each_category %>% filter(title=="historical", type=="cat_3") %>% pull(Value)
+
+cells_in_each_category_wide$historico_low <-values_h_cat3[1]
+cells_in_each_category_wide$historico_middle <-values_h_cat3[2]
+cells_in_each_category_wide$historico_high <-values_h_cat3[3]
+
+cells_in_each_category_wide <- cells_in_each_category_wide %>% select(escenario, historico_low, historico_middle, historico_high, everything())
+
+# 
+# %>%  fill(low, middle, high,  .direction = "updown") %>% 
+#   filter(!type=="cat_3") %>%
+#   distinct() 
+
+
+ft <- flextable(cells_in_each_category_wide) %>%
+bold(part = "header") %>% 
+colformat_double(
+  digits = 1, na_str = "N/A"
+  )  %>%
+  bg(bg = "#F7CAAC", part = "header") %>%
+  bg(i=seq(2,dim(cells_in_each_category_wide)[1],2),  part = "body", bg =  "#FBE4D5") %>%
+   flextable::width(width=1.1)   %>% border_outer() 
+
+
+ ft <- add_header_row(ft, 
+  values = c("", "Histórico", "2021-2040", "2041-2060", "2061-2080", "2081-2100"), 
+  colwidths = c(1,3,3,3,3,3)) 
+ 
+ ft <-ft %>% align_text_col(align = "center") %>% merge_v(j = c(2, 3, 4)) %>%
+   set_header_labels(ft, values = list(
+    "escenario" = "",
+    "historico_low" = "a",
+    "historico_middle" = "b",
+    "historico_high" = "c",
+    "2021-2040_low" = "a",
+    "2021-2040_middle" = "b",
+    "2021-2040_high" = "c",
+    "2041-2060_low" = "a",
+    "2041-2060_middle" = "b",
+    "2041-2060_high" = "c",
+    "2061-2080_low" = "a",
+    "2061-2080_middle" = "b",
+    "2061-2080_high" = "c",
+    "2081-2100_low" = "a",
+    "2081-2100_middle" = "b",
+    "2081-2100_high" = "c"
+
+  ))
+ 
+
+
+ 
+ft <- ft %>% 
+  flextable::border(border = fp_border(color = "orange"), part="body") %>% 
+  flextable::align(align = "center", part = "all")  %>%
+  flextable::border_outer() %>%  fontsize(size = 8, part = "all") %>% 
+  theme_box() 
+
+ft <- autofit(ft)
+
+auto_widths  <- dim(ft)$widths/sum(dim(ft)$widths)
+
+auto_height  <- dim(ft)$height/sum(dim(ft)$height)
+
+
+i = 15 # width of the side borders in the word_document output (in centimeters)
+w = i*0.3937 # width of the side borders in the word_document output (in inches)
+
+# ft <- flextable::width(ft,  width=w*auto_widths) %>% flextable::height_all( height = 0.51*w, part = "header", unit = "in") %>%  height(height = 0.05, part = "header") %>% hrule(rule = "exact", part = "header")
+
+ft <- flextable::width(ft,  width=w*auto_widths) %>% flextable::height_all( height = 0.51*w, part = "header", unit = "in") 
+
+
+ft
+
+```
+
+```{r}
+#| label: tbl-trends_var
+#| tbl-cap:  "Resultados de la variación porcentual entre periodos temporales del número de cuadrículas de alta favorabilidad (> 0,8) en Extremadura."
+#| tbl-cap-location: bottom
+
+cells_in_each_category_var <- cells_in_each_category %>% 
+     filter(!is.na(percent)) %>%
+  select(!c(Value, percent))  %>% 
+   filter(category =="high") %>%
+    filter(type =="cat_3") %>%
+    group_by(escenario, periodo) %>%
+  pivot_wider(id_cols=escenario, names_from = c(periodo), values_from = variacion)
+
+
+ft <- flextable(cells_in_each_category_var) %>%
+bold(part = "header") %>% 
+colformat_double(
+  digits = 1, na_str = "N/A"
+  )  %>%
+  bg(bg = "#F7CAAC", part = "header") %>%
+  bg(i=seq(2,dim(cells_in_each_category_wide)[1],2),  part = "body", bg =  "#FBE4D5") %>%
+   flextable::width(width=1.1)   %>% border_outer() 
+
+
+  colormatrix <- ifelse(cells_in_each_category_var[, -1] > 0, "green", "red")
+  
+ft <- set_formatter( x = ft,   
+                     `2021-2040`= function(x) ifelse(x < 0, paste0("\u2193(", sprintf("%.0f", abs(x)),"%)"),  paste0("\u2191(", sprintf("%.0f", abs(x)),"%)")),
+                     `2041-2060`= function(x) ifelse(x < 0, paste0("\u2193(", sprintf("%.0f", abs(x)),"%)"),  paste0("\u2191(", sprintf("%.0f", abs(x)),"%)")),
+                     `2061-2080`= function(x) ifelse(x < 0, paste0("\u2193(", sprintf("%.0f", abs(x)),"%)"),  paste0("\u2191(", sprintf("%.0f", abs(x)),"%)")),
+                     `2081-2100`= function(x) ifelse(x < 0, paste0("\u2193(", sprintf("%.0f", abs(x)),"%)"),  paste0("\u2191(", sprintf("%.0f", abs(x)),"%)"))) %>% 
+  color(j = 2:5, color=colormatrix)
+
+ft <- ft %>% align_text_col(align = "center") %>% 
+  set_header_labels(ft, values = list("escenario" = "SSP/Periodos"))
+
+
+ft <- ft %>% 
+  flextable::border(border = fp_border(color = "orange"), part="body") %>% 
+  flextable::align(align = "center", part = "all")  %>%
+  border_outer() %>%  fontsize(size = 8, part = "all") %>% height_all( height = 0.53, unit = "cm")
+
+ft <- autofit(ft)
+
+auto_widths  <- dim(ft)$widths/sum(dim(ft)$widths)
+
+auto_height  <- dim(ft)$height/sum(dim(ft)$height)
+
+
+i = 14.99 # width of the side borders in the word_document output (in centimeters)
+w = i*0.3937 # width of the side borders in the word_document output (in inches)
+
+ft <- flextable::width(ft,  width=w*auto_widths) %>% flextable::height_all( height = 0.51*w, part = "header", unit = "in")
+
+ft
+
+```
 
 ```{r  label = fig-future, echo = FALSE, fig.cap = "Resultados gráficos de la variación de favorabilidad total en Extremadura por escenarios temporales y de emisión (SSP). a) dos clases: valores de favorabilidad >0,5 (verde) y <0,5 (rojo), b) tres clases: baja favorabilidad <0,2 (rojo), favorabilidad intermedia 0,2-0,8 (amarillo) y alta favorabilidad >0,8 (verde).", out.width = '100%'}
 knitr::include_graphics(file.path(paths$figure_path,"future_prediction_2.png"))
@@ -800,24 +1041,36 @@ metadata <- readr::read_delim(file = "01_DATA/OUTPUT/metadata_predictors.csv")
 tabla_variables <- subset(metadata, select=-predictors_names )
 colnames(tabla_variables) <- c("Tipología", "Nombre", "Descripción", "Paisaje", "Habitat", "NestSite", "Factores")
 
-flextable(tabla_variables) %>%
+ft <- flextable(tabla_variables %>% dplyr::select(! Factores)) %>%
 bold(part = "header") %>% 
 colformat_double(
   digits = 3, na_str = "N/A"
   )  %>%
   bg(bg = "#F7CAAC", part = "header") %>%
-    fontsize(size = 10,part = "header") %>%
-
+  fontsize(size = 9,part = "header") %>%
   fontsize(size = 8,part = "body") %>%
   # bg(i=seq(1,dim(tabla_variables)[1],2),  part = "body", bg =  "#FBE4D5") %>%
-  bg(i=which(tabla_variables$Tipología =="TOPOGRÁFICAS"),  part = "body", bg =  "#FBE4D5") %>%
-  bg(i=which(tabla_variables$Tipología =="CLIMÁTICAS"),  part = "body", bg =  "#FBE4D5") %>%
-  bg(i=which(tabla_variables$Tipología =="USOS DEL SUELO"),  part = "body", bg =  "#FBE4D5") %>%
-  bg(i=which(tabla_variables$Tipología =="VEGETACIÓN"),  part = "body", bg =  "#FBE4D5") %>%
-  bg(i=which(tabla_variables$Tipología =="LITOLOGÍA"),  part = "body", bg =  "#FBE4D5") %>%
-  flextable::width(width=2.15, unit="cm")  %>%
-  set_table_properties(layout = "fixed")  %>% border_outer()
+  bg(i=which(tabla_variables$Tipología =="TOPOGRÁFICAS"),  part = "body", bg =  "#D9D9D9") %>%
+  bg(i=which(tabla_variables$Tipología =="ESPACIALES"),  part = "body", bg =  "#FFF2CC") %>%
+  bg(i=which(tabla_variables$Tipología =="CLIMÁTICAS"),  part = "body", bg =  "#B4C6E7") %>%
+  bg(i=which(tabla_variables$Tipología =="ACTIVIDAD HUMANA"),  part = "body", bg =  "#CF9F6F") %>%
+  bg(i=which(tabla_variables$Tipología =="USOS DEL SUELO"),  part = "body", bg =  "#F8CBAD") %>%
+  bg(i=which(tabla_variables$Tipología =="ÍNDICES DEL PAISAJE"),  part = "body", bg =  "#E2EFDA") %>%
+  bg(i=which(tabla_variables$Tipología =="VEGETACIÓN"),  part = "body", bg =  "#A9D08E") %>%
+  bg(i=which(tabla_variables$Tipología =="GANADO Y CAZA"),  part = "body", bg =  "#FFD966") %>%
+  bg(i=which(tabla_variables$Tipología =="LITOLOGÍA"),  part = "body", bg =  "#A6A6A6") %>%
+  bg(i=which(tabla_variables$Tipología =="HIDROLOGÍA"),  part = "body", bg =  "#2E74B5") %>%
+  set_table_properties(layout = "fixed")  %>% border_outer()   %>%
+  flextable::width(j = 3, width=5, unit="cm")
 
+
+# auto_widths  <- dim(ft)$widths/sum(dim(ft)$widths)
+# 
+# auto_widths <- c(0.350, 0.150 ,0.455, 0.06, 0.06 ,0.06)
+# 
+# ft <- flextable::width(ft,  width=w*auto_widths) 
+
+ft
 ```
 
 # ANEXO 2. RELACIÓN DE VARIABLES UTILIZADAS EN EL MODELO DE DISTRIBUCIÓN DEL ÁGUILA IMPERIAL EN FUNCIÓN DEL CAMBIO CLIMÁTICO

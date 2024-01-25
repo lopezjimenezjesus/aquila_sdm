@@ -111,17 +111,33 @@ saveRDS(xy.fdr, file =  file.path(paths$model_path, "nest_fdr.rds"))
 
 variables_to_model <- paste(rownames(xy.fdr$select)[1:length(rownames(xy.fdr$select))], collapse = " + ")
 
+
+#variables_to_model <- "QUESUR + Slope + Tri + AltVeg + EUCSPP + NW + Granitos + Urbano + PINO  + N + Distcarrer + QUEPYR + SE  + E + CASSAT"
+
 ## Fit model
 ##################################################
 
-null.model <- glm(presence ~ 1, data=xy, family = binomial)
+# null.model <- glm(presence ~ 1, data=xy, family = binomial)
+# 
+# nest_model.glm <- step(null.model, direction='forward',
+#                   keep =  function(model, aic) list(model = model, aic = aic),
+#                   scope = paste0("~", variables_to_model))
 
-nest_model.glm <- step(null.model, direction='forward',
-                  keep =  function(model, aic) list(model = model, aic = aic),
-                  scope = paste0("~", variables_to_model))
+
+# xy_selection <- xy %>% dplyr::select(rownames(xy.fdr$select), presence) %>% dplyr::select(!c(AlturaInf, AlturaSup))
+
+xy_selection <- xy %>% dplyr::select(rownames(xy.fdr$select), presence)
+
+
+
+nest_model.glm  <- fuzzySim::stepwise(xy_selection, length(xy_selection), 1:(length(xy_selection) -1), family = binomial(link="logit"), 
+                                 simplif=FALSE, direction="forward", trace=2,preds=TRUE, Favourability=FALSE,Wald=TRUE)
+
 
 
 # nest_model.glm <-glm(presence~AltVeg+Slope+AlturaInf+Tri, data=xy, family=binomial)
+
+nest_model.glm <- nest_model.glm$model
 
 summary(nest_model.glm)
 
@@ -197,30 +213,30 @@ write_rds(tidy_coef, file = file.path(paths$model_path, "nest_tabla_coef.rds"))
 ## Metrics
 ##################################################
 
-blr <- blr_test_hosmer_lemeshow(nest_model.glm)
-
-crosspred_glm <- mecofun::crossvalSDM(nest_model.glm, traindat= xy,
-                                      colname_pred=colnames(xy)[1:(dim(xy)[2]-1)], 
-                                      colname_species = "presence", kfold= 10)
-
-write_rds(blr, file = file.path(paths$model_path, "nest_blr.rds"))
-
-
-evalsdm <-  mecofun::evalSDM(xy$presence, crosspred_glm)
-
-tm <- threshMeasures(model = nest_model.glm, ylim = c(0, 1), thresh = 0.5)
-
-c_m <-  as.data.frame(tm$ConfusionMatrix)
-
-rownames(c_m) <- c("Favorable", "Desfavorable")
-colnames(c_m) <- c("Presencia", "Ausencia")
-c_m
-
-
-model.metrics <- data.frame(AUC=evalsdm[c("AUC")], 
-                            UPR=tm$ThreshMeasures[c("UPR"),],
-                            OPR=tm$ThreshMeasures[c("OPR"),],
-                            HyL=blr$pvalue)
-model.metrics
-
-saveRDS(object = model.metrics, file =  file.path(paths$model_path, "nest_model_metrics.rds"))
+# blr <- blr_test_hosmer_lemeshow(nest_model.glm)
+# 
+# crosspred_glm <- mecofun::crossvalSDM(nest_model.glm, traindat= xy,
+#                                       colname_pred=colnames(xy)[1:(dim(xy)[2]-1)], 
+#                                       colname_species = "presence", kfold= 10)
+# 
+# write_rds(blr, file = file.path(paths$model_path, "nest_blr.rds"))
+# 
+# 
+# evalsdm <-  mecofun::evalSDM(xy$presence, crosspred_glm)
+# 
+# tm <- threshMeasures(model = nest_model.glm, ylim = c(0, 1), thresh = 0.5)
+# 
+# c_m <-  as.data.frame(tm$ConfusionMatrix)
+# 
+# rownames(c_m) <- c("Favorable", "Desfavorable")
+# colnames(c_m) <- c("Presencia", "Ausencia")
+# c_m
+# 
+# 
+# model.metrics <- data.frame(AUC=evalsdm[c("AUC")], 
+#                             UPR=tm$ThreshMeasures[c("UPR"),],
+#                             OPR=tm$ThreshMeasures[c("OPR"),],
+#                             HyL=blr$pvalue)
+# model.metrics
+# 
+# saveRDS(object = model.metrics, file =  file.path(paths$model_path, "nest_model_metrics.rds"))

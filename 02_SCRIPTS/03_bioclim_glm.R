@@ -273,7 +273,6 @@ bmod_aa_biohist.trimmmed <- modelTrim(bmod_aa_biohist)
 ## Model 2: by Feature selection
 ##################################################
 
-
 # make_model <- function(nm) lm(xy.scaled[c("sp", nm)])
 # fits <- Map(make_model, xy.scaled)
 # 
@@ -318,6 +317,12 @@ model_n_steps <- length(fmod_aa_biohist$keep) / 2
 saveRDS(object = model_n_steps, file = file.path(paths$model_path, "future_n_steps_model.rds"))
 
 fmod_aa_biohist.trimmed <- modelTrim(fmod_aa_biohist)
+
+# 
+# nest_model.glm  <- fuzzySim::stepwise(xy.scaled.selection, length(xy.scaled.selection), 1:(length(xy.scaled.selection) -1), family = binomial(link="logit"), 
+#                                       simplif=FALSE, direction="forward", trace=2,preds=TRUE, Favourability=FALSE,Wald=TRUE)
+# 
+# 
 
 ## Plot both models
 ##################################################
@@ -532,6 +537,11 @@ favourability_2081_2100_plot_2 <-lapply(
 
 do.call("grid.arrange", c(favourability_2081_2100_plot_2, ncol = 2))
 
+
+
+## Tendencias ---
+##################################################
+
 ## Layout all
 ##################################################
 
@@ -562,8 +572,40 @@ cells_in_each_category <-bind_rows(cells_in_each_category, .id = "column_label")
 cells_in_each_category <- pivot_longer(cells_in_each_category, c(low, middle, high), values_to = "Value", names_to = "category")
 
 
+cells_in_each_category <- cells_in_each_category %>% group_by(periodo, escenario) %>%  mutate(percent=Value*100 / 516)
+
+
+cells_historical_3 <- historical_cat_3$data %>% 
+  group_by(category) %>% 
+  summarise(Value=n()) %>% 
+  st_drop_geometry() %>% 
+  mutate(percent=Value*100 / 516) %>% 
+  mutate(column_label="", title="historical", escenario="0", periodo="0", type="cat_3", variacion=NA) %>%
+  select(column_label, title, escenario, periodo, type, category, Value, variacion)
+  
+
+cells_historical_2 <- historical_cat_2$data %>% 
+  group_by(category) %>% 
+  summarise(Value=n()) %>% 
+  st_drop_geometry() %>% 
+  mutate(percent=Value*100 / 516) %>%
+  mutate(column_label="", title="historical", escenario="0", periodo="0", type="cat_2", variacion=NA) %>%
+  select(column_label, title, escenario, periodo, type, category, Value, variacion)
+
+
+
+high_f_cat2 <- cells_historical_2[cells_historical_2$category=="high",]$Value
+high_f_cat3 <- cells_historical_3[cells_historical_3$category=="high",]$Value
+# Variación = [Periodo final – Periodo inicial] x 100
+# 
+# Periodo Inicial
+
+
+cells_in_each_category <- cells_in_each_category %>% mutate(variacion= if_else(type=="cat_2", ((Value- high_f_cat2) / high_f_cat2)*100, ((Value- high_f_cat3) / high_f_cat3)*100))
+
 
 # Crea el gráfico de tendencias
+
 ggplot(cells_in_each_category, aes(x = periodo, y = Value, color = escenario, group = interaction(escenario, category))) +
   geom_line() +
   geom_point() +
@@ -574,6 +616,9 @@ ggplot(cells_in_each_category, aes(x = periodo, y = Value, color = escenario, gr
        y = "Valor") +
   theme_minimal()
 
+# add historical data
+
+cells_in_each_category <- rbind(cells_in_each_category, cells_historical_2) %>% rbind(cells_historical_3)
 
 # 
 # ggplot(data=cells_summary) + 
