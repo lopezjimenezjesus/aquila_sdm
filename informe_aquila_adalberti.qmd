@@ -101,7 +101,7 @@ model.metrics <- readRDS(file.path(paths$model_path, 'model_metrics.rds'))
 
 # tabla variables
 
-tabla_variables <- read.csv(file = "01_DATA/OUTPUT/metadata_predictors.csv")
+tabla_variables <- read.csv(file = "01_DATA/OUTPUT/metadata_predictors.csv", sep = ";")
 
 
 # tabla coeficientes
@@ -117,6 +117,9 @@ tabla_coef_future <-readRDS(file.path( paths$model_path, 'tabla_coef_future.rds'
 max_wald_5 <- tabla_coef_present %>% arrange(desc(Wald)) %>% head(5) %>% dplyr::select("variables", "Wald") 
 #tabla_coef_present$variables[which.max(tabla_coef_present$Wald)]
 
+
+descripcion_predictores <- max_wald_5 %>% left_join(tabla_variables,  by = join_by(variables == predictors_names)) %>% pull(descripcion)
+descripcion_predictores <- gsub(r"{\s*\([^\)]+\)}","",as.character(knitr::combine_words(descripcion_predictores, and = "y "))) 
 
 # R2 
 
@@ -246,12 +249,9 @@ nest_n_fav_alta <- sum(fav_nest > 0.8)
 nest_n_fav_baja <- sum(fav_nest <= 0.2)
 nest_n_fav_baja_2 <- sum(fav_nest <= 0.1)
 
-
 nest_percent_fav_baja <- round(sum(fav_nest <= 0.2) / length(fav_nest) *100, 2)
 
 nest_n_fav_intermedia <- sum(fav_nest >= 0.2 & fav_nest <= 0.8)
-
-
 
 nest_tabla_coef <- readRDS(file = file.path(paths$model_path, "nest_tabla_coef.rds"))
 
@@ -362,15 +362,15 @@ Por ello en el presente apartado se pretende acometer el modelo de distribución
 
 #### *Obtención y descripción de los datos y variables utilizadas*
 
-Los datos de distribución del águila imperial (en adelante AQUADA por abreviación de su nombre científico), provienen de los censos anuales de la Dirección General de Medio Ambiente de la Junta de Extremadura para los años comprendidos entre 2005 y 2019, donde se localizan puntualmente los nidos de esta especie y se realiza un seguimiento de su éxito reproductor. Para llevar a cabo el cálculo de la favorabilidad en estos territorios, se han establecido cuadrículas UTM de 10 kilómetros (CUTM10) de lado que han tenido al menos una presencia de la especie reproductora (pareja segura, pareja probable y territorio ocupado) para cada año. El tamaño de cuadrícula seleccionado, ya ha sido utilizado con anterioridad en otros estudios previos de rapaces (Carrete et al., 2000; Muñoz et al., 2005; Tapia et al., 2007; De Vittorio et al., 2012).
+Los datos de distribución del águila imperial (en adelante AQUADA por abreviación de su nombre científico), provienen de los censos anuales de la Dirección General de Medio Ambiente de la Junta de Extremadura para los años comprendidos entre 2010 y 2021, donde se localizan puntualmente los nidos de esta especie y se realiza un seguimiento de su éxito reproductor. Para llevar a cabo el cálculo de la favorabilidad en estos territorios, se han establecido cuadrículas UTM de 10 kilómetros (CUTM10) de lado que han tenido al menos una presencia de la especie reproductora (pareja segura, pareja probable y territorio ocupado) para cada año. El tamaño de cuadrícula seleccionado, ya ha sido utilizado con anterioridad en otros estudios previos de rapaces (Carrete et al., 2000; Muñoz et al., 2005; Tapia et al., 2007; De Vittorio et al., 2012).
 
 Analizando la frecuencia acumulada de la presencia de AQUADA en estas cuadrículas (Figura 1) se ha observado que tras los tres primeros periodos, su número se estabiliza con incrementos muy inferiores a los alcanzados en primer lugar. Este hecho, estableció la utilización del periodo (2017-2019) como indicador de la localización espacial actual del águila imperial en Extremadura, acumulando este periodo el 85% del total del área de presencia de la especie en los últimos 10 años. Optimizando de esta manera el mayor número de CUTM10 con el menor número de años, evitando así la inclusión de territorios abandonados por la especie que no sean representativos para su distribución espacial actual.
 
 ![Número de cuadrículas UTM de 10 km de lado con presencia de la especie AQUADA por periodos acumulativos (azul) y su incremento respecto al periodo anterior (naranja).](01_DATA/INPUT/figures/presencia_sp_barras.png)
 
-Finalmente se han obtenido 131 cuadrículas UTM de 10 kilómetros de lado con presencia de CICNIG, de un total de 516 cuadrículas que incluye Extremadura, es decir, el 25.4% del territorio extremeño (Figura 2).
+Finalmente se han obtenido 131 cuadrículas UTM de 10 kilómetros de lado con presencia de AQUADA, de un total de 516 cuadrículas que incluye Extremadura, es decir, el 25.4% del territorio extremeño (Figura 2).
 
-Los distintos factores que potencialmente pueden influir en la presencia de la especie quedan definidos por distintas variables explicativas. La misma malla de cuadrículas UTM utilizada para definir las presencias y ausencias de CICNIG, ha sido utilizada para extraer los valores de las diferentes variables, obtenidas de múltiples fuentes (Anexo 1) y clasificadas en las siguientes tipologías: variables topográficas, espaciales, climáticas y antrópicas, así como variables del uso del suelo, del paisaje, la vegetación y relacionadas con la caza y la ganadería. Todas las variables, cuya resolución espacial mínima es de al menos 1 km y máxima de 2,5 metros en el mejor de los casos, se han homogeneizado, transformando todos los datos ráster a una resolución de 25 metros de lado y recortándose por los límites de la Comunidad Autónoma de Extremadura. Esta resolución también ha sido tomada para la transformación de los datos de distancias y densidades provenientes de capas vectoriales.
+Los distintos factores que potencialmente pueden influir en la presencia de la especie quedan definidos por distintas variables explicativas. La misma malla de cuadrículas UTM utilizada para definir las presencias y ausencias de AQUADA, ha sido utilizada para extraer los valores de las diferentes variables, obtenidas de múltiples fuentes (Anexo 1) y clasificadas en las siguientes tipologías: variables topográficas, espaciales, climáticas y antrópicas, así como variables del uso del suelo, del paisaje, la vegetación y relacionadas con la caza y la ganadería. Todas las variables, cuya resolución espacial mínima es de al menos 1 km y máxima de 2,5 metros en el mejor de los casos, se han homogeneizado, transformando todos los datos ráster a una resolución de 25 metros de lado y recortándose por los límites de la Comunidad Autónoma de Extremadura. Esta resolución también ha sido tomada para la transformación de los datos de distancias y densidades provenientes de capas vectoriales.
 
 ![Presencia de la especie AQUADA (azul) en la malla de cuadrículas UTM de 10 km de lado.](01_DATA/INPUT/figures/presencia_sp_mapas.png)
 
@@ -424,7 +424,7 @@ Como primer paso para la evaluación del modelo resultante, se ha obtenido la bo
 
 La selección del hábitat es un proceso que suele producirse de forma jerárquica, donde las características a mayor escala se seleccionan antes que las de menor (Johnson, 1980; Jones y Robertson, 2001). Se ha sugerido que estos procesos afectan a la selección de los lugares de nidificación (Orians y Wittenberger, 1991; Martínez *et al.*, 2003), ya que para que las características a menor escala sean las adecuadas, deben estar englobadas en el paisaje adecuado. El estudio de la distribución de las especies en relación con las características del paisaje puede ser de gran ayuda para construir modelos con los que mejorar estimas demográficas a gran escala, o para desarrollar una estratificación en muestreos para la investigación y seguimiento (Cowardin *et al.*, 1995; Johnson *et al.*, 2009).
 
-Para determinar la favorabilidad del Águila imperial en la Comunidad Autónoma de Extremadura, se procedió en primer lugar a identificar aquellas variables predictoras más significativas para el conjunto de presencias y ausencias de la especie en Extremadura. Para ello se utilizó la Tasa de descubrimiento falso (FDR) que permite excluir aquellas variables con menor influencia en el modelo. Posteriormente se ajustó un modelo linear generalizado por pasos hacia adelante con las variables previamente seleccionadas. Como resultado el modelo incluyó un total de `r lcoef` variables (@tbl-coeficientes). En `r n_positive_coef` variables la relación ha sido positiva, y en `r n_negative_coef` de ellas negativa. Las variables con mayor peso en el modelo (Test de Wald) han sido `r max_wald_5[1,1]`, seguida de `r max_wald_5[2,1]`, `r max_wald_5[3,1]`, `r max_wald_5[4,1]` y `r max_wald_5[5,1]`.
+Para determinar la favorabilidad del Águila imperial en la Comunidad Autónoma de Extremadura, se procedió en primer lugar a identificar aquellas variables predictoras más significativas para el conjunto de presencias y ausencias de la especie en Extremadura. Para ello se utilizó la Tasa de descubrimiento falso (FDR) que permite excluir aquellas variables con menor influencia en el modelo. Posteriormente se ajustó un modelo linear generalizado por pasos hacia adelante con las variables previamente seleccionadas. Como resultado el modelo incluyó un total de `r lcoef` variables (@tbl-coeficientes). En `r n_positive_coef` variables la relación ha sido positiva, y en `r n_negative_coef` de ellas negativa. Las variables con mayor peso en el modelo (Test de Wald) han sido `r descripcion_predictores ` (`r max_wald_5[1,1]`, `r max_wald_5[2,1]`, `r max_wald_5[3,1]`, `r max_wald_5[4,1]`, `r max_wald_5[5,1]`).
 
 ```{r}
 #| label: tbl-coeficientes
@@ -472,7 +472,7 @@ colformat_double(
    flextable::width(width=0.9)  %>% border_outer() 
 ```
 
-A partir de la matriz de confusión (@tbl-confusion), definida para el umbral de favorabilidad de 0.5, se observa que del total de presencias de la especie, el `r desfav_presencia`% se corresponden con zonas desfavorables, frente al `r fav_presencia`% que se encuentran en zonas favorables. De igual forma, el `r percent_desfavorable` % de las cuadrículas del territorio de Extremadura son desfavorables para la especie, al no encontrarse presente la misma.
+A partir de la matriz de confusión (@tbl-confusion), definida para el umbral de favorabilidad de 0.5, se observa que del total de presencias de la especie, el `r desfav_presencia`% se corresponden con zonas desfavorables, frente al `r fav_presencia`% que se encuentran en zonas favorables. De igual forma, el `r percent_desfavorable` % de las cuadrículas del territorio de Extremadura son desfavorables para la especie, no encontrándose en ellas presencia de la misma.
 
 ```{r}
 #| label: tbl-confusion
@@ -526,6 +526,8 @@ f_a <- if_else(!is.na(tolower(n_f$factores[3])),  tolower(n_f$factores[3]), "fac
 
 Del total de las variables seleccionadas por el modelo (`r n_var` variables), `r n_f_b` han sido relacionadas con `r f_b`, `r n_f_an` con `r f_an` y `r n_f_a` con `r f_a` (@tbl-baan). En relación a la contribución a la variación total explicada por el modelo de cada uno de los factores que agrupan las variables seleccionadas, los factores abióticos tienen mayor influencia frente a los factores antrópicos (%). En conjunto, las interacciones entre factores han tenido un efecto relativamente pequeño en el modelo (@fig-variance).
 
+Conviene destacar la presencia en el modelo de dos de los factores que mayormente determinan su distribución: la densidad de conejos y los tendidos eléctricos, siendo esta última variable uno de los factores que mayormente explican su mortalidad por causas no naturales. Adicionalmente se observa una alta preferencia por zonas arboladas por especies del género quercus.
+
 ```{r}
 #| label: tbl-baan
 #| tbl-cap: "Variables agrupadas por factores bióticos, abióticos y antrópicos"
@@ -566,7 +568,7 @@ El resto del proceso para obtener el modelo final de la selección del hábitat 
 
 ### Resultados
 
-En el caso del estudio del hábitat del águila imperial en Extremadura, la técnica FDR ha incluido `dim(habitat_fdr$select)[1]` variables significativas de un total de `r dim(habitat_fdr$select)[1] + dim(habitat_fdr$select)[2]` disponibles. Las variables seleccionadas se han incluido en el modelo de regresión logística por pasos hacia adelante ( `r dim(habitat_model_step$keep)[2]` pasos), estableciendo un total de `r length(coef(habitat_model))-1` variables explicativas (@tbl-habitat_coeficientes) estadísticamente significativas (p \<= 0,05). Los valores de bondad de ajuste del modelo han indicado que no han existido diferencias significativas (HyL \> 0,05) entre lo observado y lo esperado en la prueba de Hosmer y Lemeshow (HyL = `r round(habitat_blr$pvalue,3)`).
+En el caso del estudio del hábitat del águila imperial en Extremadura, la técnica FDR ha incluido `r dim(habitat_fdr$select)[1]` variables significativas de un total de `r dim(habitat_fdr$select)[1] + dim(habitat_fdr$select)[2]` disponibles. Las variables seleccionadas se han incluido en el modelo de regresión logística por pasos hacia adelante ( `r dim(habitat_model_step$keep)[2]` pasos), estableciendo un total de `r length(coef(habitat_model))-1` variables explicativas (@tbl-habitat_coeficientes) estadísticamente significativas (p \<= 0,05). Los valores de bondad de ajuste del modelo han indicado que no han existido diferencias significativas (HyL \> 0,05) entre lo observado y lo esperado en la prueba de Hosmer y Lemeshow (HyL = `r round(habitat_blr$pvalue,3)`).
 
 ```{r}
 #| label: tbl-habitat_coeficientes
@@ -720,7 +722,7 @@ Se han seleccionado todas las variables bioclimáticas disponibles en WorldClim2
 
 Para las variables climáticas en escenarios futuros de cambio climático, se han utilizado los datos más actuales que presenta WorldClim, correspondientes al proyecto de inter-comparación de modelos de clima acoplados (Coupled Model Intercomparison Project Phase 6, CMIP6) (Eyring et al., 2016), cuya escala de trabajo es de 2,5 minutos de arco (Aproximadamente 5 km). Estos modelos, en comparación con sus antecesores (CMIP5), tienen una mayor sensibilidad, e incluyen nuevas y mejores representaciones de procesos químicos y biológicos.
 
-En el CMIP6, se establecen hasta cuatro de los cinco escenarios de emisión desarrollados por el IPCC en su sexto informe (IPCC, 2021a): SSP1-2.6, SSP2-4.5, SSP3-7.0 y SSP5-8.5. Para todos ellos, se han utilizado los principales modelos climáticos de circulación atmosférica global (Global Climate Models, GCM) disponibles en la base de datos de WorldClim (Figura 54), basados en leyes físicas de la atmósfera y en la parametrización de procesos, tales como: movimientos de las masas de aire, formación de la nubosidad y efectos del océano, entre otros factores. Para mantener la homogeneidad de los datos, se ha desestimado la utilización de los datos del GCM GFDL-ESM4 provenientes del Geophysical Fluid Dynamics Laboratory, que no están disponibles para los escenarios SSPP2-4.5 y SSP5-8.5.
+En el CMIP6, se establecen hasta cuatro de los cinco escenarios de emisión desarrollados por el IPCC en su sexto informe (IPCC, 2021a): SSP1-2.6, SSP2-4.5, SSP3-7.0 y SSP5-8.5. Para todos ellos, se han utilizado los principales modelos climáticos de circulación atmosférica global (Global Climate Models, GCM) disponibles en la base de datos de WorldClim (Figura 54), basados en leyes físicas de la atmósfera y en la parametrización de procesos, tales como: movimientos de las masas de aire, formación de la nubosidad y efectos del océano, entre otros factores. Para mantener la homogeneidad de los datos, se ha desestimado la utilización de los datos del GCM GFDL-ESM4 provenientes del Geophysical Fluid Dynamics Laboratory, que no estaban disponibles para los escenarios SSPP2-4.5 y SSP5-8.5 en el momento del análisis.
 
 ```{r  label = fig-mod_cir, echo = FALSE, fig.cap = "Escenarios de cambio climático establecidos en la base de datos WoldClim2 acordes a los escenarios planteados en el IPPC en su sexto informe.", out.width = '100%'}
 
@@ -732,7 +734,7 @@ Para el conjunto de los 16 escenarios temporales y de emisiones (SSP) pertenecie
 
 Al igual que los datos climáticos históricos, los datos los diferentes escenarios de cambio climático han sido calibrados y regionalizados mediante WorldClim2. Estos datos presentan hasta cuatro escenarios temporales cada 20 años: 2021-2040, 2040-2060, 2061-2080, 2081-2100.
 
-Con todo ello, teniendo en cuenta los 8 GCM, cada uno de ellos con cuatro escenarios de emisiones y cuatro escenarios temporales; se han obtenido para cada una de las 19 variables bioclimáticas, un total de 128 capas ráster de los distintos escenarios de cambio climático proyectados (Figura 54).
+Con todo ello, teniendo en cuenta los 7 GCM, cada uno de ellos con cuatro escenarios de emisiones y cuatro escenarios temporales; se han obtenido para cada una de las 19 variables bioclimáticas, un total de 128 capas ráster de los distintos escenarios de cambio climático proyectados (Figura 54).
 
 #### *Cálculo de favorabilidad histórica y futura*
 
@@ -790,7 +792,7 @@ historical_cat_2 + historical_cat_3 + plot_annotation(tag_levels = 'A')
 
 ```
 
-En el cómputo global de la favorabilidad para los escenarios futuros, no se aprecia una fuerte tendencia en la distribución de áreas idóneas en uno u otro sentido. Partiendo de una menor favorabilidad para la mayor parte de las combinaciones entre periodos y escenarios, se puede observa un ligero repunte en las zonas de favorabilidad alta en las áreas centrales a lo largo del tiempo y para los escenarios de mayor emisión, mientras que aumentan las zonas de favorabilidad baja en detrimento de las zonas intermedias de favorabilidad. Esta ligera polarización en el territorio se acentúa a lo largo de los periodos contemplados y para los escenarios de mayor impacto. Las zonas de favorabilidad baja aumentan especialmente en el cuadrante suroeste, manteniéndose estables en el tercio norte. Para las zonas de favorabilidad alta, se observa un desplazamiento hacia el noreste con respecto a los resultados históricos, apreciándose una cierta fragmentación en 2 núcleos bien diferenciados y manteniéndose una zona marginal al sur de la región (@fig-future). En conclusión, y teniendo en cuenta la incertidumbre asociada a estos modelos, los resultados sugieren un cierto impacto negativo para la especie con respecto a la distribución actual, si bien aún se mantienen áreas de alta favorabilidad que pueden actuar como refugios en las peores previsiones climáticas (@tbl-trends_cat2).
+En el cómputo global de la favorabilidad (alta , media y baja) para los escenarios futuros, no se aprecia una fuerte tendencia en la presencia y distribución de áreas idóneas en uno u otro sentido. Partiendo de una menor favorabilidad para la mayor parte de las combinaciones entre periodos y escenarios con respecto a la favorabilidad histórica, se puede observa un ligero repunte en las zonas de favorabilidad alta en las áreas centrales a lo largo del tiempo y para los escenarios de mayor emisión, mientras que aumentan las zonas de favorabilidad baja en detrimento de las zonas intermedias de favorabilidad. Esta ligera polarización en el territorio se acentúa a lo largo de los periodos contemplados y para los escenarios de mayor impacto. Las zonas de favorabilidad baja aumentan especialmente en el cuadrante suroeste, manteniéndose estables en el tercio norte. Para las zonas de favorabilidad alta, se observa un desplazamiento hacia el noreste con respecto a los resultados históricos, apreciándose una cierta fragmentación en 2 núcleos bien diferenciados y manteniéndose una zona marginal al sur de la región (@fig-future). En conclusión, y teniendo en cuenta la incertidumbre asociada a estos modelos, los resultados sugieren un impacto negativo para la especie con respecto a la distribución actual, si bien aún se mantienen áreas de alta favorabilidad que pueden actuar como refugios en las peores previsiones climáticas (@tbl-trends_cat2, @tbl-trends_cat3, @tbl-ioms, @tbl-trends_var).
 
 ```{r}
 #| label: tbl-trends_cat2
@@ -830,7 +832,7 @@ colformat_double(
    flextable::width(width=1.1)   %>% border_outer() 
 
  ft <- add_header_row(ft, 
-  values = c("", "2021-2040", "2041-2060", "2061-2080", "2081-2100", "Histórico"), 
+  values = c("",  "Histórico", "2021-2040", "2041-2060", "2061-2080", "2081-2100"), 
   colwidths = c(1,2,2,2,2,2)) 
  
  ft <-ft %>% align_text_col(align = "center") %>% merge_v(j = c(2, 3)) %>%
@@ -869,9 +871,7 @@ ft <- flextable::width(ft,  width=w*auto_widths) %>% flextable::height_all( heig
 ft
 ```
 
-
 .
-
 
 ```{r}
 #| label: tbl-trends_cat3
@@ -884,7 +884,9 @@ cells_in_each_category_wide <- cells_in_each_category %>%
    filter(!type=="cat_2") %>%
    filter(!is.na(percent)) %>%
   group_by(column_label) %>% 
-  pivot_wider(id_cols=escenario, names_from = c(periodo, category), values_from = percent)
+  pivot_wider(id_cols=escenario, 
+              names_from = c(periodo, category), 
+              values_from = percent)
 
 cells_in_each_category_wide$escenario <- c("SSP1-2,6", "SSP2-4,5", "SSP3-7,0", "SSP5-8,5")
 
@@ -912,34 +914,30 @@ colformat_double(
    flextable::width(width=1.1)   %>% border_outer() 
 
 
- ft <- add_header_row(ft, 
-  values = c("", "Histórico", "2021-2040", "2041-2060", "2061-2080", "2081-2100"), 
-  colwidths = c(1,3,3,3,3,3)) 
+ft <- add_header_row(ft, values = c("", "Histórico", "2021-2040", "2041-2060", "2061-2080", "2081-2100"),  colwidths = c(1,3,3,3,3,3)) 
  
- ft <-ft %>% align_text_col(align = "center") %>% merge_v(j = c(2, 3, 4)) %>%
-   set_header_labels(ft, values = list(
-    "escenario" = "",
-    "historico_low" = "a",
-    "historico_middle" = "b",
-    "historico_high" = "c",
-    "2021-2040_low" = "a",
-    "2021-2040_middle" = "b",
-    "2021-2040_high" = "c",
-    "2041-2060_low" = "a",
-    "2041-2060_middle" = "b",
-    "2041-2060_high" = "c",
-    "2061-2080_low" = "a",
-    "2061-2080_middle" = "b",
-    "2061-2080_high" = "c",
-    "2081-2100_low" = "a",
-    "2081-2100_middle" = "b",
-    "2081-2100_high" = "c"
+ft <-ft %>% align_text_col(align = "center") %>% merge_v(j = c(2, 3, 4)) %>%
+ set_header_labels(ft, values = list(
+  "escenario" = "",
+  "historico_low" = "a",
+  "historico_middle" = "b",
+  "historico_high" = "c",
+  "2021-2040_low" = "a",
+  "2021-2040_middle" = "b",
+  "2021-2040_high" = "c",
+  "2041-2060_low" = "a",
+  "2041-2060_middle" = "b",
+  "2041-2060_high" = "c",
+  "2061-2080_low" = "a",
+  "2061-2080_middle" = "b",
+  "2061-2080_high" = "c",
+  "2081-2100_low" = "a",
+  "2081-2100_middle" = "b",
+  "2081-2100_high" = "c"
 
-  ))
- 
+))
 
 
- 
 ft <- ft %>% 
   flextable::border(border = fp_border(color = "orange"), part="body") %>% 
   flextable::align(align = "center", part = "all")  %>%
@@ -961,7 +959,8 @@ w = i*0.3937 # width of the side borders in the word_document output (in inches)
 ft <- flextable::width(ft,  width=w*auto_widths) %>% flextable::height_all( height = 0.51*w, part = "header", unit = "in") 
 
 
-ft
+ft %>% autofit() %>%
+  height(height = .5)
 
 ```
 
@@ -971,11 +970,11 @@ ft
 #| tbl-cap-location: bottom
 
 cells_in_each_category_var <- cells_in_each_category %>% 
-     filter(!is.na(percent)) %>%
+  filter(!is.na(percent)) %>%
   select(!c(Value, percent))  %>% 
-   filter(category =="high") %>%
-    filter(type =="cat_3") %>%
-    group_by(escenario, periodo) %>%
+  filter(category =="high") %>%
+  filter(type =="cat_3") %>%
+  group_by(escenario, periodo) %>%
   pivot_wider(id_cols=escenario, names_from = c(periodo), values_from = variacion)
 
 
@@ -986,10 +985,10 @@ colformat_double(
   )  %>%
   bg(bg = "#F7CAAC", part = "header") %>%
   bg(i=seq(2,dim(cells_in_each_category_wide)[1],2),  part = "body", bg =  "#FBE4D5") %>%
-   flextable::width(width=1.1)   %>% border_outer() 
+  flextable::width(width=1.1)   %>% border_outer() 
 
 
-  colormatrix <- ifelse(cells_in_each_category_var[, -1] > 0, "green", "red")
+colormatrix <- ifelse(cells_in_each_category_var[, -1] > 0, "green", "red")
   
 ft <- set_formatter( x = ft,   
                      `2021-2040`= function(x) ifelse(x < 0, paste0("\u2193(", sprintf("%.0f", abs(x)),"%)"),  paste0("\u2191(", sprintf("%.0f", abs(x)),"%)")),
@@ -1023,10 +1022,47 @@ ft
 
 ```
 
+Atendiendo a la la variación porcentual entre periodos temporales para las zonas muy favorables (\> 0,8), se ha podido observar una disminución de la favorabilidad a lo largo del tiempo en todos los escenarios y periodos. Esta tendencia negativa se suaviza para los escenarios de mayor emisión en el periodo 2081-2100. Sin embargo conviene resaltar los resultados obtenidos para todas las categorías de favorabilidad para matizar esta aparente mejora, dado que los resultados muestran una disminución de la favorabilidad global para estos escenarios.
+
 ```{r  label = fig-future, echo = FALSE, fig.cap = "Resultados gráficos de la variación de favorabilidad total en Extremadura por escenarios temporales y de emisión (SSP). a) dos clases: valores de favorabilidad >0,5 (verde) y <0,5 (rojo), b) tres clases: baja favorabilidad <0,2 (rojo), favorabilidad intermedia 0,2-0,8 (amarillo) y alta favorabilidad >0,8 (verde).", out.width = '100%'}
 knitr::include_graphics(file.path(paths$figure_path,"future_prediction_2.png"))
 
 ```
+
+Los índices de variación de la favorabilidad (@tbl-ioms) son congruentes con los análisis realizados, mostrando variaciones porcentuales mínimas respecto a las áreas climáticas favorables a la especie (I). Respecto al índice de superposición (O) tampoco se aprecian cambios significativos, con valores similares entre diferentes escenarios de emisión y periodos. Esta variación no ha sido suficiente para que afecte a las zonas favorables actuales, que se mantendrán en todos los escenarios proyectados (M) y no serán sustituidas por zonas desfavorables (S). Si bien las áreas de alta favorabilidad experimentan un ligero aumento para los escenarios de mayor emisión, la favorabilidad para la especie sufre un retroceso, explicado por el aumento de áreas de menor favorabilidad en la región.
+
+```{r}
+#| label: tbl-ioms
+#| tbl-cap:  "Resultados de los índices de variación de la favorabilidad climática histórica frente a la favorabilidad de los diferentes escenarios de cambio climático. Índice de incremento (I), superposición (O), mantenimiento (M) y cambio estimado (S)."
+#| tbl-cap-location: bottom
+
+ioms_wide <- read_rds(file.path(paths$model_path, "ioms.rds")) %>% arrange(scene)
+
+ioms_wide$scene <- as.character(factor(ioms_wide$scene, labels=c("SSP1-2,6", "SSP2-4,5", "SSP3-7,0", "SSP4-8,5")))
+
+ft <- flextable(ioms_wide) %>% 
+  delete_part(part = "header") %>% 
+  add_header_row( values = c("SSP/Periodos", "2021-2040", "2041-2060", "2061-2080", "2081-2100"), colwidths = c(2,1,1,1,1))  %>% 
+  merge_v(j = c(1, 2)) %>%
+  align(align = "center", part="all")  %>%
+  colformat_double(digits = 3, na_str = "N/A")  %>%
+  bg(bg = "#F7CAAC", part = "header") %>%
+  bg(i=c(1, 2, 3, 4, 9, 10, 11, 12),  part = "body", bg =  "#FBE4D5") %>%
+  flextable::width(width=1) %>% border_outer() %>%
+  bold(i = NULL, j = 1:2, bold = TRUE, part = "body") %>%
+  fontsize(size = 9,part = "header") %>%
+  fontsize(size = 8,part = "body") %>%
+  bold( bold = TRUE, part = "header") %>% autofit() %>%
+  height(height = .5)
+
+ft
+```
+
+La favorabilidad climática actual del águila imperial en Extremadura presenta una varios núcleos bien diferenciados. Las zonas altamente favorables se concentran en la región central de Extremadura, coincidentes con parte de los núcleos en los que se agrupa la especie. Las zonas de favorabilidad intermedia cubren la mayor parte del territorio, a excepción del norte y suroeste de la región, donde predominan las zonas de favorabilidad climática baja.
+
+Los factores que mayormente explican la favorabilidad climática de la especie en Extremadura son la isotermalidad, las precipitaciones en el mes más árido, la temperatura máxima del mes más cálido y en menor medida la temperatura media del trimestre más húmedo. Las dos primeras variables ejercen un efecto negativo sobre la distribución de la especie, frente a las dos últimas que mejoran su estatus.
+
+Aparentemente, el cambio climático va a tener un efecto negativo sobre el águila imperial, que verá disminuida las áreas de favorabilidad climática para todos los periodos y escenarios considerados. Este hecho, junto con otras amenazas (rarefacción del conejo, electrocución por tendidos eléctricos, envenenamiento y pérdida de habitat) requieren de la puesta en marcha de medidas para evitar el declive de la especie.
 
 # ANEXO 1. RELACIÓN DE VARIABLES UTILIZADAS EN LOS MODELOS DE DISTRIBUCIÓN DEL ÁGUILA IMPERIAL A DIFERENTES ESCALAS
 

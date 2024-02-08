@@ -539,9 +539,6 @@ do.call("grid.arrange", c(favourability_2081_2100_plot_2, ncol = 2))
 
 
 
-## Tendencias ---
-##################################################
-
 ## Layout all
 ##################################################
 
@@ -552,79 +549,8 @@ x4 <- c(rbind(favourability_2081_2100_plot_,favourability_2081_2100_plot_2))
 
 x <-  c(rbind(x1,x2, x3, x4))
 
-# Get number of cells in each category (low, middle, high) for all models
-
-# Patrón de expresión regular
-patron <- "^(\\d+) \\((\\d+-\\d+)\\)$"
-
-cells_in_each_category <- sapply(x, function(x){
-  # Aplica la expresión regular y captura los grupos
-  resultados <- str_match(x$label$title, patron)
-  
-  df <- data.frame(rbind(table(x$data$category)), title= x$label$title, escenario=resultados[2], periodo=resultados[3],
-                   type=if_else(length(names(table(x$data$category))) == 2, "cat_2", "cat_3"))
-  return(df)
-})
 
 
-cells_in_each_category <-bind_rows(cells_in_each_category, .id = "column_label")
-
-cells_in_each_category <- pivot_longer(cells_in_each_category, c(low, middle, high), values_to = "Value", names_to = "category")
-
-
-cells_in_each_category <- cells_in_each_category %>% group_by(periodo, escenario) %>%  mutate(percent=Value*100 / 516)
-
-
-cells_historical_3 <- historical_cat_3$data %>% 
-  group_by(category) %>% 
-  summarise(Value=n()) %>% 
-  st_drop_geometry() %>% 
-  mutate(percent=Value*100 / 516) %>% 
-  mutate(column_label="", title="historical", escenario="0", periodo="0", type="cat_3", variacion=NA) %>%
-  select(column_label, title, escenario, periodo, type, category, Value, variacion)
-  
-
-cells_historical_2 <- historical_cat_2$data %>% 
-  group_by(category) %>% 
-  summarise(Value=n()) %>% 
-  st_drop_geometry() %>% 
-  mutate(percent=Value*100 / 516) %>%
-  mutate(column_label="", title="historical", escenario="0", periodo="0", type="cat_2", variacion=NA) %>%
-  select(column_label, title, escenario, periodo, type, category, Value, variacion)
-
-
-
-high_f_cat2 <- cells_historical_2[cells_historical_2$category=="high",]$Value
-high_f_cat3 <- cells_historical_3[cells_historical_3$category=="high",]$Value
-# Variación = [Periodo final – Periodo inicial] x 100
-# 
-# Periodo Inicial
-
-
-cells_in_each_category <- cells_in_each_category %>% mutate(variacion= if_else(type=="cat_2", ((Value- high_f_cat2) / high_f_cat2)*100, ((Value- high_f_cat3) / high_f_cat3)*100))
-
-
-# Crea el gráfico de tendencias
-
-ggplot(cells_in_each_category, aes(x = periodo, y = Value, color = escenario, group = interaction(escenario, category))) +
-  geom_line() +
-  geom_point() +
-  geom_smooth(method = "lm", se = TRUE, aes(group = interaction(type, category)), color = "black", linetype = "dashed") +
-  facet_wrap(~type+category , scales = "free_y") +
-  labs(title = "Tendencias por Escenario",
-       x = "Período",
-       y = "Valor") +
-  theme_minimal()
-
-# add historical data
-
-cells_in_each_category <- rbind(cells_in_each_category, cells_historical_2) %>% rbind(cells_historical_3)
-
-# 
-# ggplot(data=cells_summary) + 
-#   geom_line(aes(x = ))
-
-write_rds(cells_in_each_category,  file.path(paths$model_path, "cells_in_each_category.rds"))
 
 ## Arrange x plots
 
@@ -750,6 +676,91 @@ ggsave(filename = file.path(paths$figure_path, "future_prediction_2.png"),
 
 knitr::plot_crop( file.path(paths$figure_path, "future_prediction_2.png"))
 
+
+
+
+## Trends ---
+##################################################
+
+
+# Get number of cells in each category (low, middle, high) for all models
+
+# Patrón de expresión regular
+patron <- "^(\\d+) \\((\\d+-\\d+)\\)$"
+
+cells_in_each_category <- sapply(x, function(x){
+  # Aplica la expresión regular y captura los grupos
+  resultados <- str_match(x$label$title, patron)
+  
+  df <- data.frame(rbind(table(x$data$category)), title= x$label$title, escenario=resultados[2], periodo=resultados[3],
+                   type=if_else(length(names(table(x$data$category))) == 2, "cat_2", "cat_3"))
+  return(df)
+})
+
+
+cells_in_each_category <-bind_rows(cells_in_each_category, .id = "column_label")
+
+cells_in_each_category <- pivot_longer(cells_in_each_category, c(low, middle, high), values_to = "Value", names_to = "category")
+
+
+cells_in_each_category <- cells_in_each_category %>% group_by(periodo, escenario) %>%  mutate(percent=Value*100 / 516)
+
+
+cells_historical_3 <- historical_cat_3$data %>% 
+  group_by(category) %>% 
+  summarise(Value=n()) %>% 
+  st_drop_geometry() %>% 
+  mutate(percent=Value*100 / 516) %>% 
+  mutate(column_label="", title="historical", escenario="0", periodo="0", type="cat_3", variacion=NA) %>%
+  select(column_label, title, escenario, periodo, type, category, Value, variacion)
+
+
+cells_historical_2 <- historical_cat_2$data %>% 
+  group_by(category) %>% 
+  summarise(Value=n()) %>% 
+  st_drop_geometry() %>% 
+  mutate(percent=Value*100 / 516) %>%
+  mutate(column_label="", title="historical", escenario="0", periodo="0", type="cat_2", variacion=NA) %>%
+  select(column_label, title, escenario, periodo, type, category, Value, variacion)
+
+
+
+high_f_cat2 <- cells_historical_2[cells_historical_2$category=="high",]$Value
+high_f_cat3 <- cells_historical_3[cells_historical_3$category=="high",]$Value
+# Variación = [Periodo final – Periodo inicial] x 100
+# 
+# Periodo Inicial
+
+
+cells_in_each_category <- cells_in_each_category %>% mutate(variacion= if_else(type=="cat_2", ((Value- high_f_cat2) / high_f_cat2)*100, ((Value- high_f_cat3) / high_f_cat3)*100))
+
+
+# Crea el gráfico de tendencias
+
+ggplot(cells_in_each_category, aes(x = periodo, y = Value, color = escenario, group = interaction(escenario, category))) +
+  geom_line() +
+  geom_point() +
+  geom_smooth(method = "lm", se = TRUE, aes(group = interaction(type, category)), color = "black", linetype = "dashed") +
+  facet_wrap(~type+category , scales = "free_y") +
+  labs(title = "Tendencias por Escenario",
+       x = "Período",
+       y = "Valor") +
+  theme_minimal()
+
+# add historical data
+
+cells_in_each_category <- rbind(cells_in_each_category, cells_historical_2) %>% rbind(cells_historical_3)
+
+# 
+# ggplot(data=cells_summary) + 
+#   geom_line(aes(x = ))
+
+write_rds(cells_in_each_category,  file.path(paths$model_path, "cells_in_each_category.rds"))
+
+
+
+
+
 ##################################################
 ## Section: Metrics ----
 ##################################################
@@ -822,4 +833,52 @@ write_rds(tidy_coef, file = file.path(paths$model_path, "tabla_coef_future.rds")
 #   row_spec(0, background = "#F7CAAC") %>%
 #   row_spec(seq(1,dim(tidy_coef)[1],2), background = "#FBE4D5")
 # 
-# 
+#
+
+## Indices variacion favorabilidad (IOMS)
+
+
+# Fav table
+
+x_filtered <- x[c(1:4 ,9:12, 17:20, 25:28)] # filter dataframes from plots
+
+get_fav_from_plot <- function(x) {
+  label <- paste0("scene_", x$labels$title)
+  x[["data"]]["mean"] %>% st_drop_geometry() %>% rename(!! label := mean)
+} # return fav column (mean) and rename
+
+fav_dataset  <- cbind(historical=historical_cat_3$data$mean,  do.call(cbind, lapply(x_filtered, get_fav_from_plot))) # merge historical and future
+
+sum_fav_dataset <- fav_dataset %>% colSums() # sum columns
+
+get_ioms <- function(x, y) {
+  
+  I = (y - x) / x
+  O = min(x,y)/max(x,y)
+  M = min(x,y)/ x
+  S = min(x - min(x,y), y - min(x,y)) / x 
+
+  return(c(I=I,O=O,M=M,S=S))
+
+    
+} # calculate IOMS
+
+ioms <- sapply(sum_fav_dataset[2:17], get_ioms, sum_fav_dataset[1])
+
+rownames(ioms) <- c("I", "O", "M", "S")
+
+get_periods <- function(x, invert = FALSE) {
+  return(regmatches(x, gregexpr("(?<=\\().*?(?=\\))", x, perl=T), invert=invert))[[1]] 
+}
+
+ioms_long <- ioms %>% as.data.frame() %>%    cbind(indices=rownames(.)) %>%
+  pivot_longer(cols = !indices, values_to = "fav") %>%
+  mutate(period=unlist(get_periods(name))) %>%
+  mutate(scene=str_split_i(string = name, pattern = " ", i = 1))
+
+ioms_wide <- ioms_long %>% pivot_wider(id_cols = c(scene, indices), names_from = period, values_from = fav)
+
+write_rds(ioms_wide,  file.path(paths$model_path, "ioms.rds"))
+
+
+
